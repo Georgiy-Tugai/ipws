@@ -4,12 +4,17 @@ ipws
 Integrated Perl Web Services, an attempt to bring passable forum, wiki, blog etc. software to Perl's ecosystem
 
 Dependencies
-------------
+============
 - Mojolicious
-- Mojolicious::Plugin::YamlConfig
+
+Mojolicious plugins
+-------------------
+
+- YamlConfig
+- Database
 
 Planned Feature list
---------------------
+====================
 
 In no particular order...
 
