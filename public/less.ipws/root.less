@@ -1,6 +1,43 @@
+@import "config.less";
 @import "util.less";
 
+body {
+	background: @pagebackground;
+	font-family: @defaultfont;
+}
+
+#navbar {
+	width: @navwidth;
+	height: 100%;
+	position: fixed;
+	top: 0;
+	left: 0;
+	background-color: @navbackground;
+}
+
 #page {
-	.centered;
-	background-color: #aaaaaa;
+	padding-left: @navwidth;
+}
+
+#content {
+	padding: 0;
+	float: left;
+	top: 0;
+	left: @navwidth;
+	width: 50%;
+	display: inline-block;
+}
+
+#multi {
+	float: right;
+	width: 50%;
+	position: relative;
+	top: 50px;
+	//display: none;
+}
+
+.pcontent {
+	padding: 5px;
+	.border-radius(6px);
+	background-color: @contentbackground;
 }

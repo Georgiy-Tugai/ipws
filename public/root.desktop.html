@@ -2,21 +2,31 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8"/>
+	<script type="text/javascript">
+	less = {
+		env: "development", // or "production"
+		poll: 1000,         // when in watch mode, time in ms between polls
+	};
+	</script>
 	<link rel="stylesheet/less" type="text/css" href="less.ipws/root.less" />
 	<script src="js.lib/less-1.4.1.min.js">
 	</script>
 </head>
 <body>
-	<div id="page">
 		<div id="navbar">
 			The navbar
 		</div>
-		<div id="content">
-			The content
+		<div id="page">
+			<div id="content">
+				<div class="pcontent">
+					The content
+				</div>
+			</div>
+			<div id="multi">
+				<div class="pcontent">
+					The multipane
+				</div>
+			</div>
 		</div>
-		<div id="multi">
-			The multipane
-		</div>
-	</div>
 </body>
 </html>
