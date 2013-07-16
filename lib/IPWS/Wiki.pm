@@ -1,6 +1,7 @@
 package IPWS::Wiki;
 use Mojo::Base 'Mojo';
 use Data::Dumper;
+push @IPWS::svcs, 'Wiki';
 #sub new {
 #	my ($class)=@_;
 #	return bless {}, $class;

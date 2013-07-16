@@ -1,9 +1,12 @@
 package IPWS;
 use IPWS::Wiki;
+use IPWS::Blog;
 use Locale::Maketext;
 use IPWS::I18N;
+use YAML::Tiny qw(Dump);
 use Mojo::Base 'Mojolicious';
 our $VERSION='0.1';
+our @svcs;
 
 # This method will run once at server start
 sub startup {
@@ -11,26 +14,36 @@ sub startup {
 
   # Documentation browser under "/perldoc"
   #$self->plugin('PODRenderer');
+  our %defaults=(
+    'db' => {
+      'server' => 'SQLite:dbname=ipws.sqlite',
+      'username' => '',
+      'password' => ''
+    },
+    'lang' => 'en',
+    'svcs' => {
+      '/wiki' => {
+        'type' => 'Wiki',
+        'name' => 'IPWS Wiki',
+        'id' => 'wiki'
+      },
+      '/blog' => {
+        'type' => 'Blog',
+        'name' => 'IPWS Blog',
+        'id' => 'blog'
+      }
+    }
+  );
   if (!-e $self->conf_file) { #XXX: Migrate (default) config into a seperate module!
     $self->log->info("Generating default configuration file.");
     open CONF, '>:encoding(UTF-8)', $self->conf_file or die $!;
-    my $rtfm=$self->l("Read The Fucking Manual - reconfigure me!");
-    print CONF <<DEFCONF
-# IPWS $VERSION config file #
-db:
-  server: SQLite:dbname=ipws.sqlite
-  username: ''
-  password: ''
-lang: en
-rtfm: $rtfm
-DEFCONF
-;
+    print CONF Dump(\%defaults);
     close CONF;
     exit;
   }
   $self->plugin('YamlConfig');
   
-  my $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || $self->config('lang') || 'en') || $self->die_log($self->l("Can't find a language file for _1, perhaps try 'en'?",$self->config('lang')));
+  my $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || $self->config('lang') || 'en') || $self->die_log($self->l("Can't find a language file for [_1], perhaps try 'en'?",$self->config('lang')));
   $self->attr('i18n' => sub {$in});
   $self->helper(l => sub {my $s=shift;$s->app->i18n()->maketext(@_)});
   
@@ -54,13 +67,26 @@ DEFCONF
 
   $r->namespaces(['IPWS']);
 
-  #$r->route('/wiki')->detour('Wiki#handler');
-  $r->route('/wiki')->detour(new IPWS::Wiki());
+  my $svcs={};
+  my %safe=a2h(@svcs);
+  foreach (keys %{$self->config('svcs')}) {
+    my $cfg=$self->config('svcs')->{$_};
+    my $type=$cfg->{'type'};
+    if ($safe{$type}) {
+      $svcs->{$_}="IPWS::$type"->new();
+      my $r2=$r->any($_)->detour($svcs->{$_},{base => $_,id => $cfg->{'id'}});
+      $svcs->{$_}->startup($r2) if "IPWS::$type"->can('startup');
+    }else{
+      $self->die_log($self->l("Unknown service [_1] on path [_2]",$type,$_));
+    }
+  }
 
   $r->route('/')->to(cb => sub {
     $_[0]->render('inline' => 'go to <a href="/wiki">/wiki</a>');
     });
 }
+
+sub a2h {map {$_,1} @_}
 
 sub die_log {
   my ($self,$msg)=@_;
