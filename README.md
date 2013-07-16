@@ -1,28 +1,23 @@
 ipws
 ====
 
-Integrated Perl Web Services, an attempt to bring passable forum, wiki, blog etc. software to Perl's ecosystem
+Integrated Perl Web Services, bringing an awesome forum, wiki, blog etc. software to Perl's ecosystem
 
 Dependencies
-============
+------------
 - Mojolicious
-
-Mojolicious plugins
--------------------
-
-- YamlConfig
-- Database
+      - Mojolicious::Plugin::YamlConfig
+      - Mojolicious::Plugin::Database
 
 Planned Feature list
-====================
+--------------------
 
-In no particular order...
+In no particular order... (although bold entries are 'bigger' sections)
 
-- [ ] Wiki
-- [ ] Forum
-- [ ] Blog
+- [ ] **Wiki**
+- [ ] **Forum**
+- [ ] **Blog**
 - [ ] Collaborative editing system
-
 - [ ] OpenID-based login (consumer)
 - [ ] OpenID provider
 - [ ] Group-based permission system
