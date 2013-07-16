@@ -1,6 +1,47 @@
 @import "util.less";
 
-#page {
-	.centered;
+@contentwidth: 600px;
+@navwidth: 200px;
+
+#navbar {
+	width: @navwidth;
+	height: 100%;
+	position: absolute;
+	top: 0;
+	left: 0;
 	background-color: #aaaaaa;
+	opacity: 0.5;
+}
+
+#page {
+	padding-left: @navwidth;
+}
+
+#content {
+	padding: 0 0 0 0;
+	float: left;
+	top: 0;
+	left: @navwidth;
+	width: 50%;
+	display: inline-block;
+	background-color: #abcdef;
+}
+
+#multi {
+	float: right;
+	background: #aaffaa;
+	width: 50%;
+	position: relative;
+	top: 50px;
+	//display: none;
+}
+
+
+.pcontent {
+	padding: 3px;
+	.border-radius(6px);
+	background-color: #6600ff;
+	height: 2000px;
+	color: #fff;
+	opacity: 0.5;
 }
