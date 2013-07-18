@@ -38,6 +38,15 @@ sub startup {
         'id' => 'admin'
       }
     },
+    'vhost' => {
+      '127.0.0.1' => {
+        '/wiki' => {
+          'type' => 'Wiki',
+          'name' => 'IPWS Wiki',
+          'id' => 'wiki'
+        }
+      }
+    },
     'debug' => 1 # FIXME: switch debug default to 0 for release
   );
   if (!-e $self->conf_file) { #XXX: Migrate (default) config into a seperate module!
@@ -68,14 +77,39 @@ sub startup {
     }
   });
 
+  $self->init_database();
+
   # Router
   my $r = $self->routes;
 
   $r->namespaces(['IPWS']);
 
+=begin clusterfuck
+
+  my $vhost_svcs={};
+  foreach my $vh (keys %{$self->config('vhost')) {
+    my $vhr=$r->over(host => $vh);
+    my $vhs=$self->config('vhost')->{$vh};
+    foreach (sort {&sort_routes} keys %$vhs) {
+      my $cfg=$vhs->{$_};
+      my $type=$cfg->{'type'};
+      if ($safe{$type}) {
+        $svcs->{$_}="IPWS::$type"->new();
+        my $r2=$r->under($_);
+        $svcs->{$_}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
+      }else{
+        $self->die_log($self->l("Unknown service [_1] on path [_2]",$type,$_));
+      }
+    }
+  }
+
+=end
+
+=cut
+  
   my $svcs={};
   my %safe=a2h(@svcs);
-  foreach (keys %{$self->config('svcs')}) {
+  foreach (sort {&sort_routes} keys %{$self->config('svcs')}) {
     my $cfg=$self->config('svcs')->{$_};
     my $type=$cfg->{'type'};
     if ($safe{$type}) {
@@ -108,6 +142,10 @@ sub startup {
     });
 }
 
+sub sort_routes {
+  length join "", $a=~m#/# <=> length join "", $b=~m#/#;
+}
+
 sub a2h {map {$_,1} @_}
 
 sub die_log {
@@ -128,4 +166,48 @@ sub conf_file {
   my $self=shift;
   return $self->home->rel_file($self->moniker().'.yaml');
 }
+
+sub init_database {
+  my $self=shift; #XXX: Move this into a seperate file, etc.
+  map {$self->db()->do($_.';')} split /;/, q[
+CREATE TABLE IF NOT EXISTS Users
+(
+ID int,
+Login varchar(255),
+Password char(512),
+Email varchar(255),
+EmailOK boolean,
+CTime int,
+LTime int,
+Name varchar(255)
+);
+CREATE TABLE IF NOT EXISTS Groups
+(
+ID int,
+Name varchar(255)
+);
+CREATE TABLE IF NOT EXISTS User_Groups
+(
+UserID int,
+GroupID int
+);
+CREATE TABLE IF NOT EXISTS Permissions
+(
+ID int,
+Service varchar(255),
+Name varchar(255)
+);
+CREATE TABLE IF NOT EXISTS User_Permissions
+(
+UserID int,
+PermID int
+);
+CREATE TABLE IF NOT EXISTS Group_Permissions
+(
+GroupID int,
+PermID int
+);
+];
+}
+
 1;

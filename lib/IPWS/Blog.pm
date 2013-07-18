@@ -7,9 +7,9 @@ push @IPWS::svcs, 'Blog';
 
 sub startup {
 	my ($self,$r,$cfg)=@_;
-	$r->get('/new')->to(action => 'newPost');
-	$r->get('/ask')->to(action => 'askMod');
-	$r->get('/mail')->to(action => 'mail');
+	$r->get('/new')->to(cb => $self->curry::handler);
+	$r->get('/ask')->to(cb => $self->curry::handler);
+	$r->get('/mail')->to(cb => $self->curry::handler);
 	$r->get('/admin')->to(cb => $self->curry::handler,action => 'admin');
 	$r->get('/*default')->to(cb => $self->curry::drawPost,post => 0);
 	$self->{cfg}=$cfg;
@@ -25,7 +25,7 @@ sub before_routes {
 
 sub drawPost {
 	my ($self,$c)=@_;
-	$c->render(text => $self->_post($c->stash('post'))."\n".$c->stash('action'));
+	$c->render(text => $self->_post($c->stash('post')));
 }
 
 sub handler {
