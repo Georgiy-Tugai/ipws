@@ -1,26 +1,42 @@
 package IPWS::Blog;
 use Mojo::Base 'Mojo';
 use Data::Dumper;
+use feature 'switch';
+use curry;
 push @IPWS::svcs, 'Blog';
 
 sub startup {
-	my ($self,$r)=@_;
-	my $post=$r->route('/:post',post => '0');
-	$post->post()->to(action => 'post');
-	$post->get()->to(action => 'get');
-	#$r->get('/:post')->to(post => '0',action => 'get');
-	#$r->post('/:post/post')->to(action => 'post');
-	#$r->delete('/delete/:post')->to(action => 'delete');
+	my ($self,$r,$cfg)=@_;
+	$r->get('/new')->to(action => 'newPost');
+	$r->get('/ask')->to(action => 'askMod');
+	$r->get('/mail')->to(action => 'mail');
+	$r->get('/admin')->to(cb => $self->curry::handler,action => 'admin');
+	$r->get('/*default')->to(cb => $self->curry::drawPost,post => 0);
+	$self->{cfg}=$cfg;
 }
 
-sub handler {
+sub before_routes {
+	my ($self,$c,$path)=@_;
+	if ($path=~m#^\/?(?:(\d+)(?:[.-/_][^/]+)?)?$#) { #/123.blog-post-title
+		$c->stash('post' => $1 || 0);
+		$self->drawPost($c);
+	}
+}
+
+sub drawPost {
 	my ($self,$c)=@_;
 	$c->render(text => $self->_post($c->stash('post'))."\n".$c->stash('action'));
 }
 
+sub handler {
+	my ($self,$c)=@_;
+	print STDERR Dumper $c->req->method;
+	$c->render(text => $c->stash('action').','.$c->stash('path'));
+}
+
 sub _post { #FIXME: stub
 	my ($self,$id)=@_;
-	return ($id % 2 == 0) ? "This is post number $id, lorem ipsum." : undef;
+	return ($id % 2 == 0) ? "This is post number $id, lorem ipsum." : "yadda yadda yadda $id";
 }
 
 1;

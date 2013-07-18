@@ -31,8 +31,14 @@ sub startup {
         'type' => 'Blog',
         'name' => 'IPWS Blog',
         'id' => 'blog'
+      },
+      '/admin' => {
+        'type' => 'Admin',
+        'name' => 'IPWS',
+        'id' => 'admin'
       }
-    }
+    },
+    'debug' => 1 # FIXME: switch debug default to 0 for release
   );
   if (!-e $self->conf_file) { #XXX: Migrate (default) config into a seperate module!
     $self->log->info("Generating default configuration file.");
@@ -74,15 +80,31 @@ sub startup {
     my $type=$cfg->{'type'};
     if ($safe{$type}) {
       $svcs->{$_}="IPWS::$type"->new();
-      my $r2=$r->any($_)->detour($svcs->{$_},{base => $_,id => $cfg->{'id'}});
-      $svcs->{$_}->startup($r2) if "IPWS::$type"->can('startup');
+      my $r2=$r->under($_);#->detour($svcs->{$_},{base => $_,id => $cfg->{'id'}});
+      $svcs->{$_}->startup($r2,$self->config('svcs')->{$_}) if "IPWS::$type"->can('startup');
     }else{
       $self->die_log($self->l("Unknown service [_1] on path [_2]",$type,$_));
     }
   }
+  
+  $self->hook(before_routes => sub {
+    my $c = shift;
+    my $path=$c->req->url->path;
+    my ($disp_debug)=(0);
+    foreach (keys %$svcs) {
+      if ($svcs->{$_}->can('before_routes') && $path=~/^$_(.*)$/) {
+        if ($disp_debug) {
+          $self->warn_log("Request to $path hit an extra before_routes handler ($_, first was $disp_debug)!\n");
+        }
+        $svcs->{$_}->before_routes($c,$1);
+        return unless $self->config('debug');
+        $disp_debug=$_;
+      }
+    }
+  });
 
   $r->route('/')->to(cb => sub {
-    $_[0]->render('inline' => 'go to <a href="/wiki">/wiki</a>');
+    $_[0]->render('inline' => 'go to <a href="/wiki">/wiki</a> or <a href="/blog">/blog</a>');
     });
 }
 
@@ -92,6 +114,12 @@ sub die_log {
   my ($self,$msg)=@_;
   $self->log->error($msg);
   die $msg."\n";
+}
+
+sub warn_log {
+  my ($self,$msg)=@_;
+  $self->log->debug($msg);
+  warn $msg."\n";
 }
 
 sub moniker {'ipws'}
