@@ -36,3 +36,4 @@ Content display
 - Tables
   - Header row
   - Stripy
+- Load-on-scroll
