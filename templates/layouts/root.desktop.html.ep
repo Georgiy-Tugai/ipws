@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8"/>
+	<script type="text/javascript">
+	less = {
+		env: "development", // or "production"
+		poll: 1000,         // when in watch mode, time in ms between polls
+	};
+	</script>
+	<link rel="stylesheet/less" type="text/css" href="less.ipws/root.less" />
+	<script src="js.lib/less-1.4.1.min.js">
+	</script>
+</head>
+<body>
+	<div id="all">
+		<div id="navbar">
+			<div id="navtitle">
+				<%= $title %>
+			</div>
+			<%== $navbar %>
+		</div>
+		<div id="page">
+			<div class="leftpanel" id="col1">
+				<div class="pcontent">
+					<%== $leftpanel %>
+				</div>
+			</div>
+			<div class="rightpanel" id="col2">
+				<div class="pcontent">
+					<%== $rightpanel %>
+				</div>
+			</div>
+			<%== content %>
+		</div>
+	</div>
+</body>
+</html>

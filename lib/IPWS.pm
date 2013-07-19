@@ -7,6 +7,7 @@ use YAML::Tiny qw(Dump);
 use Mojo::Base 'Mojolicious';
 our $VERSION='0.1';
 our @svcs;
+our @res_path=qw(/ /admin);
 
 # This method will run once at server start
 sub startup {
@@ -31,20 +32,6 @@ sub startup {
         'type' => 'Blog',
         'name' => 'IPWS Blog',
         'id' => 'blog'
-      },
-      '/admin' => {
-        'type' => 'Admin',
-        'name' => 'IPWS',
-        'id' => 'admin'
-      }
-    },
-    'vhost' => {
-      '127.0.0.1' => {
-        '/wiki' => {
-          'type' => 'Wiki',
-          'name' => 'IPWS Wiki',
-          'id' => 'wiki'
-        }
       }
     },
     'debug' => 1 # FIXME: switch debug default to 0 for release
@@ -83,35 +70,21 @@ sub startup {
   my $r = $self->routes;
 
   $r->namespaces(['IPWS']);
-
-=begin clusterfuck
-
-  my $vhost_svcs={};
-  foreach my $vh (keys %{$self->config('vhost')) {
-    my $vhr=$r->over(host => $vh);
-    my $vhs=$self->config('vhost')->{$vh};
-    foreach (sort {&sort_routes} keys %$vhs) {
-      my $cfg=$vhs->{$_};
-      my $type=$cfg->{'type'};
-      if ($safe{$type}) {
-        $svcs->{$_}="IPWS::$type"->new();
-        my $r2=$r->under($_);
-        $svcs->{$_}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
-      }else{
-        $self->die_log($self->l("Unknown service [_1] on path [_2]",$type,$_));
-      }
-    }
-  }
-
-=end
-
-=cut
+  
+  $r->route('/')->to(cb => sub {
+    $_[0]->render('test');
+    });
   
   my $svcs={};
   my %safe=a2h(@svcs);
+  my %resr=a2h(@res_path);
   foreach (sort {&sort_routes} keys %{$self->config('svcs')}) {
     my $cfg=$self->config('svcs')->{$_};
     my $type=$cfg->{'type'};
+    if ($resr{$_}) {
+      $self->warn_log($self->l("Service [_1] ([_2]) is on a reserved path '[_3]'. Service disabled.",$$cfg{id},$type,$_));
+      next;
+    }
     if ($safe{$type}) {
       $svcs->{$_}="IPWS::$type"->new();
       my $r2=$r->under($_);#->detour($svcs->{$_},{base => $_,id => $cfg->{'id'}});
@@ -136,10 +109,6 @@ sub startup {
       }
     }
   });
-
-  $r->route('/')->to(cb => sub {
-    $_[0]->render('inline' => 'go to <a href="/wiki">/wiki</a> or <a href="/blog">/blog</a>');
-    });
 }
 
 sub sort_routes {
@@ -150,13 +119,13 @@ sub a2h {map {$_,1} @_}
 
 sub die_log {
   my ($self,$msg)=@_;
-  $self->log->error($msg);
+  $self->log->fatal($msg);
   die $msg."\n";
 }
 
 sub warn_log {
   my ($self,$msg)=@_;
-  $self->log->debug($msg);
+  $self->log->error($msg);
   warn $msg."\n";
 }
 
