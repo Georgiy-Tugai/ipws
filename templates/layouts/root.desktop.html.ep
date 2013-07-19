@@ -31,7 +31,6 @@
 					<%== $rightpanel %>
 				</div>
 			</div>
-			<%== content %>
 		</div>
 	</div>
 </body>

@@ -36,16 +36,16 @@ html,body {
 	width: 50%;
 	display: inline-block;
 	height: 100%;
-	overflow-y: auto;
+	overflow: auto;
 	position: relative;
 }
 
 .rightpanel {
 	float: right;
 	width: 50%;
-	display: none;
+	//display: none;
 	height: 100%;
-	overflow-y: auto;
+	overflow: auto;
 }
 
 .pcontent {
@@ -53,6 +53,21 @@ html,body {
 	padding: 10px;
 	margin: 10px;
 	.border-radius(6px);
-	background: @contentbackground;
 	height: 4000px;
+}
+
+.leftpanel {
+	.pcontent {
+		background-color: @contentbackground;
+	}
+}
+
+.rightpanel {
+	.pcontent {
+		background-color: darken(@contentbackground,20%);
+	}
+}
+
+.widebutton {
+	width: 100%;
 }
