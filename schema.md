@@ -4,6 +4,7 @@ Database schema
 Core
 ----
 
+``` SQL
 CREATE TABLE IF NOT EXISTS users
 (
 id INTEGER PRIMARY KEY ASC,
@@ -107,10 +108,12 @@ summary varchar(255),
 response longtext, /* This might need CHARACTER SET UTF8 on mysql. */
 rtime int      /* reported at */
 );
+```
 
 Blog
 ----
 
+``` SQL
 CREATE TABLE IF NOT EXISTS posts
 (
 id INTEGER PRIMARY KEY ASC,
@@ -132,3 +135,4 @@ ctime int,
 etime int
 );
 CREATE INDEX IF NOT EXISTS comment_index ON comments (blogid,postid);
+```
