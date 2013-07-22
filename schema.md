@@ -4,99 +4,131 @@ Database schema
 Core
 ----
 
-CREATE TABLE IF NOT EXISTS Users
+CREATE TABLE IF NOT EXISTS users
 (
-ID int,
-Login varchar(255),
-Password char(512),
-Email varchar(255),
-EmailOK boolean, /* email validated */
-CTime int, /* creation time */
-LTime int, /* last login time */
-LAddr varchar(255), /* last login address */
-Name varchar(255)
+id INTEGER PRIMARY KEY ASC,
+login varchar(255) NOT NULL,
+password char(512) NOT NULL,
+email varchar(255),
+emailok boolean, /* email validated */
+ctime int unsigned NOT NULL, /* creation time */
+ltime int unsigned, /* last login time */
+laddr varchar(64), /* last login address */
+name varchar(255),
+locale varchar(32)
 );
 
-CREATE TABLE IF NOT EXISTS Groups
+CREATE TABLE IF NOT EXISTS groups
 (
-ID int,
-Name varchar(255)
+id INTEGER PRIMARY KEY ASC,
+name varchar(255) NOT NULL
 );
-CREATE TABLE IF NOT EXISTS User_Groups
+CREATE TABLE IF NOT EXISTS user_groups
 (
-UserID int,
-GroupID int
+userid INTEGER PRIMARY KEY,
+groupid int NOT NULL,
+parentid int
+);
+CREATE TABLE IF NOT EXISTS user_prefs
+(
+userid INTEGER PRIMARY KEY,
+service varchar(255),
+name varchar(255) NOT NULL,
+value varchar(255) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS user_perms
+(
+userid INTEGER PRIMARY KEY,
+service varchar(255),
+name varchar(255) NOT NULL,
+value tinyint NOT NULL /* take permissions away as well as grant them? */
+);
+CREATE TABLE IF NOT EXISTS user_blocks
+(
+userid INTEGER PRIMARY KEY,
+blockedid int,
+ctime int
+);
+/* Watching a user */
+CREATE TABLE IF NOT EXISTS user_watches
+(
+userid INTEGER PRIMARY KEY,
+watchedid int,
+ctime int
+);
+/* Favoriting a particular object -- wiki page, blog post, blog comment... */
+CREATE TABLE IF NOT EXISTS user_favorites
+(
+user_id INTEGER PRIMARY KEY,
+service varchar(255),
+objectid int,
+objecttype varchar(255) /* XXX: Is this the right way to go about it? */
+);
+CREATE TABLE IF NOT EXISTS group_perms
+(
+groupid INTEGER PRIMARY KEY,
+service varchar(255),
+name varchar(255) NOT NULL,
+value tinyint NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS Permissions
+CREATE TABLE IF NOT EXISTS user_bans
 (
-ID int,
-Service varchar(255), /* Wiki, Blog, etc. */
-Name varchar(255)
+id INTEGER PRIMARY KEY ASC,
+userid int, /* user who was banned */
+modid int, /* moderator who banned */
+userip char(45), /* IPv6 */
+modip char(45),
+ipban int, /* link to IP ban ID, if any */
+ctime int,
+etime int, /* expiry/end time */
+reason longtext,
+service varchar(255)
 );
-CREATE TABLE IF NOT EXISTS User_Permissions
+CREATE TABLE IF NOT EXISTS ip_bans
 (
-UserID int,
-PermID int
+id INTEGER PRIMARY KEY ASC,
+ip varchar(64), /* FIXME: make IP ban format more user friendly and/or flexible? */
+ctime int,
+etime int,
+reason longtext
 );
-CREATE TABLE IF NOT EXISTS Group_Permissions
+CREATE TABLE IF NOT EXISTS reports
 (
-GroupID int,
-PermID int
-);
-
-CREATE TABLE IF NOT EXISTS User_Bans
-(
-ID int,
-UserID int, /* user who was banned */
-ModID int, /* moderator who banned */
-UserIP varchar(255),
-ModIP varchar(255),
-IPBan int, /* link to IP ban ID, if any */
-CTime int,
-ETime int, /* expiry/end time */
-Reason longtext,
-Service varchar(255)
-);
-CREATE TABLE IF NOT EXISTS IP_Bans
-(
-ID int,
-IP varchar(255),
-Mask varchar(255), /* FIXME: make IP ban format more user friendly and/or flexible? */
-CTime int,
-ETime int,
-Reason longtext
+id INTEGER PRIMARY KEY ASC,
+service varchar(255),
+objectid int,
+objecttype varchar(255), /* XXX: Is this the right way to go about it? */
+userid int, /* reporter */
+rcontent longtext, /* This might need CHARACTER SET UTF8 on mysql. */
+icontent longtext, /* This is the content of the ITEM REPORTED, at the time of reporting. */
+ctime int,      /* creation time */
+summary varchar(255),
+response longtext, /* This might need CHARACTER SET UTF8 on mysql. */
+rtime int      /* reported at */
 );
 
 Blog
 ----
 
-CREATE TABLE IF NOT EXISTS Posts
+CREATE TABLE IF NOT EXISTS posts
 (
-ID int,
-UserID int,
-Title varchar(255),
-Content longtext /* XXX: This might need CHARACTER SET UTF8 on mysql. */
-CTime int,
-ETime int
+id INTEGER PRIMARY KEY ASC,
+userid int,
+title text,
+content longtext /* XXX: This might need CHARACTER SET UTF8 on mysql. */
+ctime int,
+etime int,
+views int
 );
-CREATE TABLE IF NOT EXISTS Comments
+CREATE TABLE IF NOT EXISTS comments /* unified so that ids are unified */
 (
-ID int,
-PostID int,
-UserID int,
-Content longtext, /* This might need CHARACTER SET UTF8 on mysql. */
-CTime int,
-ETime int
+id INTEGER PRIMARY KEY ASC,
+blogid int,
+postid int, /* -1 for wall? */
+userid int,
+content longtext, /* This might need CHARACTER SET UTF8 on mysql. */
+ctime int,
+etime int
 );
-CREATE TABLE IF NOT EXISTS Comment_Reports
-(
-ID int,
-CommentID int, /* reported */
-UserID int,     /* by */
-RContent longtext, /* This might need CHARACTER SET UTF8 on mysql. */
-IContent longtext, /* This is the content of the ITEM REPORTED, at the time of reporting. */
-CTime int      /* creation time */
-Response longtext, /* This might need CHARACTER SET UTF8 on mysql. */
-RTime int      /* reported at */
-);
+CREATE INDEX IF NOT EXISTS comment_index ON comments (blogid,postid);
