@@ -8,6 +8,7 @@ Dependencies
 - Mojolicious
       - Mojolicious::Plugin::YamlConfig
       - Mojolicious::Plugin::Database
+- Rose::DB::Object
 
 Planned Feature list
 --------------------

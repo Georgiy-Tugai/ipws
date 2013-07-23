@@ -4,10 +4,10 @@ id INTEGER PRIMARY KEY ASC,
 login varchar(255) NOT NULL,
 password char(512) NOT NULL,
 email varchar(255),
-emailok boolean, -- email validated
+emailok boolean NOT NULL DEFAULT 0, -- email validated
 ctime int unsigned NOT NULL, -- creation time
 ltime int unsigned, -- last login time
-laddr varchar(64), -- last login address
+laddr char(45), -- last login address
 name varchar(255),
 locale varchar(32)
 );

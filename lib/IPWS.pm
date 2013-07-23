@@ -1,16 +1,15 @@
 package IPWS;
-use IPWS::Wiki;
-use IPWS::Blog;
-use IPWS::User;
 use Locale::Maketext;
 use IPWS::I18N;
 use DBIx::MultiStatementDo;
 use YAML::Tiny qw(Dump);
 use Mojo::Base 'Mojolicious';
+use IPWS::DB;
 our $VERSION='0.1';
 our @svcs;
 our @res_path=qw(/ /admin);
 our $cfg_ver='0.1.1';
+our $db;
 
 # This method will run once at server start
 sub startup {
@@ -26,7 +25,11 @@ sub startup {
   our %defaults=(
     'config_version' => $cfg_ver,
     'db' => {
-      'dsn' => 'dbi:SQLite:dbname=ipws.sqlite',
+      #'dsn' => 'dbi:SQLite:dbname=ipws.sqlite',
+      'driver' => 'SQLite',
+      'database' => 'ipws.sqlite',
+      'host' => '',
+      'port' => '',
       'username' => '',
       'password' => '',
       'prefix' => ''
@@ -71,20 +74,14 @@ sub startup {
     die "RTFM! ".$self->l('Read The Fucking Manual - reconfigure me!')."\n";
   }
   
-  $self->plugin('database',{ #TODO: Early-load 'plugins' in case they need other databases, perhaps? May be important for integrating e.g. external authentication.
-    databases => {
-      'db' => {
-        dsn => $self->config('db')->{dsn} || $self->die_log($self->l("You must configure a database to use IPWS!")),
-        username => $self->config('db')->{username} || '',
-        password => $self->config('db')->{password} || '',
-        options => {
-          #RaiseError => 1
-        }
-      }
-    }
-  });
+  IPWS::DB->startup($self);
+  $self->helper('db' => sub {IPWS::DB->new_or_cached('main')->dbh});
 
   $self->init_database();
+  #local $db=$self->db();
+  
+  require IPWS::Wiki;
+  require IPWS::Blog;
 
   # Router
   my $r = $self->routes;

@@ -1,21 +1,24 @@
 package IPWS::Group;
-use Mojo::Base 'IPWS::DBObj';
+use Mojo::Base 'IPWS::DB::Object';
 
-sub new {
-	my ($class,$app,$id)=@_;
-	my $self=$class->SUPER::new(@_);
-	$self->{_can_cache}||={};
-	$self->{_parent_cache}||={};
-	if ($attr{name}){
-		my $sth=$self->prep('SELECT id FROM '.$self->ptable.' WHERE name=?',method => 'new');
-		$sth->execute($attr{name});
-		$self->{id}=$sth->fetchrow_hashref()->{id};
-		$self->refresh;
-	}
-}
-
-sub table {'groups'}
-
-sub can {
-	
-}
+__PACKAGE__->meta->setup(
+	table => 'groups',
+	columns => [
+		id => {type => 'serial', primary_key => 1, not_null => 1},
+		name => {type => 'varchar', not_null => 1},
+		parentid => {type => 'int'}
+	],
+	unique_key => 'name',
+	foreign_keys => [
+		parent => {
+			class => 'IPWS::Group',
+			key_columns => {parentid => 'id'}
+		}
+	],
+	relationships => [
+		users => {
+			type => 'many to many',
+			map_class => 'IPWS::Map::UserGroup'
+		}
+	]
+);
