@@ -7,14 +7,17 @@ push @IPWS::svcs, 'Blog';
 
 sub startup {
 	my ($self,$r,$cfg)=@_;
-	$r->get('/new')->to(cb => $self->curry::handler);
-	$r->get('/ask')->to(cb => $self->curry::handler);
-	$r->get('/mail')->to(cb => $self->curry::handler);
+	$r->get('/new')->to(cb => $self->curry::handler, action => 'new');
+	$r->get('/ask')->to(cb => $self->curry::handler, action => 'ask');
+	$r->get('/mail')->to(cb => $self->curry::handler, action => 'mail');
 	$r->get('/admin')->to(cb => $self->curry::handler,action => 'admin');
-	$r->get('/*default')->to(cb => $self->curry::drawPost,post => 0);
+	my $r2=$r->route('/#post',post => qr/(\d+)/)->to(cb => $self->curry::drawPost,post => 0);
+	$r2->route('/')->to(cb => $self->curry::drawPost);
+	$r2->route('/:suf')->to(cb => $self->curry::drawPost);
 	$self->{cfg}=$cfg;
 }
 
+=begin comment
 sub before_routes {
 	my ($self,$c,$path)=@_;
 	if ($path=~m#^\/?(?:(\d+)(?:[.-/_][^/]+)?)?$#) { #/123.blog-post-title
@@ -22,10 +25,12 @@ sub before_routes {
 		$self->drawPost($c);
 	}
 }
+=end
+=cut
 
 sub drawPost {
 	my ($self,$c)=@_;
-	$c->render(text => $self->_post($c->stash('post')));
+	$c->render(text => $self->_post($c->stash('post')).' in format '.$c->stash('format').' with suffix '.$c->stash('suf'));
 }
 
 sub handler {

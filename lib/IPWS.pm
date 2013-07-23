@@ -1,13 +1,16 @@
 package IPWS;
 use IPWS::Wiki;
 use IPWS::Blog;
+use IPWS::User;
 use Locale::Maketext;
 use IPWS::I18N;
+use DBIx::MultiStatementDo;
 use YAML::Tiny qw(Dump);
 use Mojo::Base 'Mojolicious';
 our $VERSION='0.1';
 our @svcs;
 our @res_path=qw(/ /admin);
+our $cfg_ver='0.1.1';
 
 # This method will run once at server start
 sub startup {
@@ -15,23 +18,30 @@ sub startup {
 
   # Documentation browser under "/perldoc"
   #$self->plugin('PODRenderer');
+  $self->{_ipws}={
+    'installer_mode' => 0
+  };
+  $self->attr('ipws' => sub {$_[0]->{_ipws}});
+  
   our %defaults=(
+    'config_version' => $cfg_ver,
     'db' => {
-      'server' => 'SQLite:dbname=ipws.sqlite',
+      'dsn' => 'dbi:SQLite:dbname=ipws.sqlite',
       'username' => '',
-      'password' => ''
+      'password' => '',
+      'prefix' => ''
     },
     'lang' => 'en',
     'svcs' => {
-      '/wiki' => {
+      'wiki' => {
         'type' => 'Wiki',
         'name' => 'IPWS Wiki',
-        'id' => 'wiki'
+        'path' => '/wiki'
       },
-      '/blog' => {
+      'blog' => {
         'type' => 'Blog',
         'name' => 'IPWS Blog',
-        'id' => 'blog'
+        'path' => '/blog'
       }
     },
     'debug' => 1 # FIXME: switch debug default to 0 for release
@@ -49,6 +59,13 @@ sub startup {
   $self->attr('i18n' => sub {$in});
   $self->helper(l => sub {my $s=shift;$s->app->i18n()->maketext(@_)});
   
+  if (!$self->config('config_version') || $self->config('config_version') lt $cfg_ver) { #old config!
+    $self->die_log($self->l("Configuration file is outdated (version=[_1]) -- there may have been incompatible changes to the schema. PLEASE CHECK THE DOCUMENTATION and then change config_version to [_2]. We'll implement automatic configuration upgrading sometime.",$self->config('config_version'),$cfg_ver));
+  }
+  if ($self->config('config_version') gt $cfg_ver) {
+    $self->warn_log($self->l("Configuration file is from the future (version=[_1]) -- there may have been incompatible changes to the schema. PLEASE CHECK THE DOCUMENTATION and then change config_version to [_2]. Automatic configuration downgrading will never be implemented. Caveat emptor!",$self->config('config_version'),$cfg_ver));
+  }
+  
   if ($self->config('rtfm')) { #TODO: Write The Fucking Manual
     $self->log->error($self->l('Read The Fucking Manual - reconfigure me!'));
     die "RTFM! ".$self->l('Read The Fucking Manual - reconfigure me!')."\n";
@@ -57,9 +74,12 @@ sub startup {
   $self->plugin('database',{ #TODO: Early-load 'plugins' in case they need other databases, perhaps? May be important for integrating e.g. external authentication.
     databases => {
       'db' => {
-        dsn => 'dbi:'.$self->config('db')->{server} || $self->die_log($self->l("You must configure a database to use IPWS!")),
+        dsn => $self->config('db')->{dsn} || $self->die_log($self->l("You must configure a database to use IPWS!")),
         username => $self->config('db')->{username} || '',
-        password => $self->config('db')->{password} || ''
+        password => $self->config('db')->{password} || '',
+        options => {
+          #RaiseError => 1
+        }
       }
     }
   });
@@ -75,40 +95,58 @@ sub startup {
     $_[0]->render('test');
     });
   
-  my $svcs={};
+  $self->ipws()->{svcs}={};
+  $self->attr('svcs' => sub {$_[0]->ipws()->{svcs}->{$_[1]}});
   my %safe=a2h(@svcs);
   my %resr=a2h(@res_path);
   foreach (sort {&sort_routes} keys %{$self->config('svcs')}) {
     my $cfg=$self->config('svcs')->{$_};
     my $type=$cfg->{'type'};
-    if ($resr{$_}) {
-      $self->warn_log($self->l("Service [_1] ([_2]) is on a reserved path '[_3]'. Service disabled.",$$cfg{id},$type,$_));
+    if (!$$cfg{'path'}) {
+      $self->warn_log($self->l("Service of type [_1] (id=[_2]) does not have a path. Service disabled.",$type,$_));
+      next;
+    }
+    if ($resr{$$cfg{path}}) {
+      $self->warn_log($self->l("Service [_1] ([_2]) is on a reserved path '[_3]'. Service disabled.",$_,$type,$$cfg{path}));
       next;
     }
     if ($safe{$type}) {
-      $svcs->{$_}="IPWS::$type"->new();
-      my $r2=$r->under($_);#->detour($svcs->{$_},{base => $_,id => $cfg->{'id'}});
-      $svcs->{$_}->startup($r2,$self->config('svcs')->{$_}) if "IPWS::$type"->can('startup');
+      $self->ipws()->{svcs}->{$_}="IPWS::$type"->new();
+      my $r2=$r->under($$cfg{path});#->detour($svcs->{$_},{base => $_,id => $cfg->{'id'}});
+      $self->ipws()->{svcs}->{$_}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
     }else{
-      $self->die_log($self->l("Unknown service [_1] on path [_2]",$type,$_));
+      $self->die_log($self->l("Unknown service [_1] (id=[_2])",$type,$_));
     }
   }
-  
-  $self->hook(before_routes => sub {
-    my $c = shift;
-    my $path=$c->req->url->path;
-    my ($disp_debug)=(0);
-    foreach (keys %$svcs) {
-      if ($svcs->{$_}->can('before_routes') && $path=~/^$_(.*)$/) {
-        if ($disp_debug) {
-          $self->warn_log("Request to $path hit an extra before_routes handler ($_, first was $disp_debug)!\n");
+
+  if (0) { #TODO: It seems that we might not need this after all.
+    $self->hook(before_routes => sub {
+      my $c = shift;
+      my $path=$c->req->url->path;
+      my ($disp_debug)=(0);
+      foreach (keys %{$self->ipws()->{svcs}}) {
+        my $cfg=%{$self->config('svcs')->{$_}};
+        if ($self->svcs($_)->can('before_routes') && $path=~/^$$cfg{path}(.*)$/) {
+          if ($disp_debug) {
+            $self->warn_log("Request to $path hit an extra before_routes handler ($_, first was $disp_debug)!\n");
+          }
+          $self->svcs($_)->before_routes($c,$1);
+          return unless $self->config('debug');
+          $disp_debug=$_;
         }
-        $svcs->{$_}->before_routes($c,$1);
-        return unless $self->config('debug');
-        $disp_debug=$_;
       }
-    }
-  });
+    });
+  }
+}
+
+sub user {
+  my ($self,%attr)=@_;
+  return IPWS::User->new($self,%attr);
+}
+
+sub group {
+  my ($self,%attr)=@_;
+  return IPWS::Group->new($self,%attr);
 }
 
 sub sort_routes {
@@ -138,45 +176,27 @@ sub conf_file {
 
 sub init_database {
   my $self=shift; #XXX: Move this into a seperate file, etc.
-  map {$self->db()->do($_.';')} split /;/, q[
-CREATE TABLE IF NOT EXISTS Users
-(
-ID int,
-Login varchar(255),
-Password char(512),
-Email varchar(255),
-EmailOK boolean,
-CTime int,
-LTime int,
-Name varchar(255)
-);
-CREATE TABLE IF NOT EXISTS Groups
-(
-ID int,
-Name varchar(255)
-);
-CREATE TABLE IF NOT EXISTS User_Groups
-(
-UserID int,
-GroupID int
-);
-CREATE TABLE IF NOT EXISTS Permissions
-(
-ID int,
-Service varchar(255),
-Name varchar(255)
-);
-CREATE TABLE IF NOT EXISTS User_Permissions
-(
-UserID int,
-PermID int
-);
-CREATE TABLE IF NOT EXISTS Group_Permissions
-(
-GroupID int,
-PermID int
-);
-];
+  $self->run_sql('init');
+}
+
+sub run_sql {
+  my ($self,$name)=@_;
+  my $f=$name.'.'.lc($self->db->{Driver}->{Name}).'.sql';
+  if (!-e $f) {
+    $f=$name.'.sql';
+    $self->die_log($self->l("No such sql file: [_1]",$f)) unless -e $f;
+  }
+  open FIL, '<:utf8', $f or $self->die_log($!);
+  my $slurp;
+  while (<FIL>) {
+    $slurp.=$_;
+  }
+  close FIL;
+  my $msh=DBIx::MultiStatementDo->new(dbh => $self->db);
+  eval {
+    $msh->do($slurp);
+  };
+  $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$msh->dbh->errstr || $@)) if $@;
 }
 
 1;

@@ -22,27 +22,26 @@ locale varchar(32)
 CREATE TABLE IF NOT EXISTS groups
 (
 id INTEGER PRIMARY KEY ASC,
-name varchar(255) NOT NULL
+name varchar(255) NOT NULL,
+parentid int
 );
 CREATE TABLE IF NOT EXISTS user_groups
 (
-userid INTEGER PRIMARY KEY,
-groupid int NOT NULL,
-parentid int
+userid int NOT NULL,
+groupid int NOT NULL
 );
 CREATE TABLE IF NOT EXISTS user_prefs
 (
-userid INTEGER PRIMARY KEY,
+userid int,
 service varchar(255),
 name varchar(255) NOT NULL,
 value varchar(255) NOT NULL
 );
 CREATE TABLE IF NOT EXISTS user_perms
 (
-userid INTEGER PRIMARY KEY,
+userid int,
 service varchar(255),
-name varchar(255) NOT NULL,
-value tinyint NOT NULL /* take permissions away as well as grant them? */
+name varchar(255) NOT NULL
 );
 CREATE TABLE IF NOT EXISTS user_blocks
 (
@@ -67,10 +66,9 @@ objecttype varchar(255) /* XXX: Is this the right way to go about it? */
 );
 CREATE TABLE IF NOT EXISTS group_perms
 (
-groupid INTEGER PRIMARY KEY,
+groupid int,
 service varchar(255),
-name varchar(255) NOT NULL,
-value tinyint NOT NULL
+name varchar(255) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS user_bans
@@ -106,7 +104,9 @@ icontent longtext, /* This is the content of the ITEM REPORTED, at the time of r
 ctime int,      /* creation time */
 summary varchar(255),
 response longtext, /* This might need CHARACTER SET UTF8 on mysql. */
-rtime int      /* reported at */
+ctime int,      /* reported at */
+rtime int,      /* responded to at */
+uban_id int
 );
 ```
 
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS posts
 id INTEGER PRIMARY KEY ASC,
 userid int,
 title text,
-content longtext /* XXX: This might need CHARACTER SET UTF8 on mysql. */
+content longtext, /* XXX: This might need CHARACTER SET UTF8 on mysql. */
 ctime int,
 etime int,
 views int
