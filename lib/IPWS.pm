@@ -2,29 +2,27 @@ package IPWS;
 use Locale::Maketext;
 use IPWS::I18N;
 use DBIx::MultiStatementDo;
-use YAML::Tiny qw(Dump);
+use YAML::Tiny qw(Dump LoadFile);
 use Mojo::Base 'Mojolicious';
 use IPWS::DB;
+use Try::Tiny;
 
 use IPWS::Wiki;
 use IPWS::Blog;
 our $VERSION='0.1';
 our @svcs;
 our @res_path=qw(/ /admin);
+our @res_id=qw(admin core);
 our $cfg_ver='0.1.2';
 our $db;
 
 # This method will run once at server start
 sub startup {
   my $self = shift;
-
-  # Documentation browser under "/perldoc"
-  #$self->plugin('PODRenderer');
-  $self->{_ipws}={
-    'installer_mode' => 0
-  };
-  $self->attr('ipws' => sub {$_[0]->{_ipws}});
   
+  $self->{_ipws}={};
+  $self->attr('ipws' => sub {$_[0]->{_ipws}});
+ 
   our %defaults=(
     'config_version' => $cfg_ver,
     'db' => {
@@ -102,12 +100,23 @@ sub startup {
   require IPWS::User;
   my $adm_user=IPWS::User->new(id => 0, login => "root");
   unless ($adm_user->load(speculative => 1)) {
-    $self->warn_log("Admin account (login=root, id=0) not found, creating...");
+    $self->warn_log($self->l("Admin account (login=root, id=0) not found, creating..."));
     require Text::Password::Pronounceable;
     my $pw=Text::Password::Pronounceable->generate(8,12);
-    $self->warn_log("ADMIN PASSWORD: $pw");
     IPWS::Password->create($adm_user,$pw);
+    $adm_user->force_change_pw(1);
+    $adm_user->locale($self->i18n->language_tag);
+    $adm_user->add_prefs({
+      service => 'admin',
+      name => 'on-change-password',
+      value => 'delete-password-file'
+    });
+    open(my $pwfil, '>:encoding(UTF-8)', 'root-password.txt') or
+      $self->fs_fail($self->l("Can't save root password! ([_1])",$@),'root-password.txt');
+    print $pwfil "$pw\n";
+    close $pwfil;
     $adm_user->save;
+    $self->warn_log($self->l("The password for your new 'root' account is in '[_1]'",$self->app->home->rel_file('root-password.txt')));
   }
   
   # Router
@@ -122,7 +131,8 @@ sub startup {
   $self->ipws()->{svcs}={};
   $self->attr('svcs' => sub {$_[0]->ipws()->{svcs}->{$_[1]}});
   my %safe=a2h(@svcs);
-  my %resr=a2h(@res_path);
+  my %resr_p=a2h(@res_path);
+  my %resr_i=a2h(@res_id);
   foreach (sort {&sort_routes} keys %{$self->config('svcs')}) {
     my $cfg=$self->config('svcs')->{$_};
     my $type=$cfg->{'type'};
@@ -130,8 +140,12 @@ sub startup {
       $self->warn_log($self->l("Service of type [_1] (id=[_2]) does not have a path. Service disabled.",$type,$_));
       next;
     }
-    if ($resr{$$cfg{path}}) {
+    if ($resr_p{$$cfg{path}}) {
       $self->warn_log($self->l("Service [_1] ([_2]) is on a reserved path '[_3]'. Service disabled.",$_,$type,$$cfg{path}));
+      next;
+    }
+    if ($resr_i{$_}) {
+      $self->warn_log($self->l("Service [_1] ([_2]) has a reserved ID. Service disabled.",$_,$type));
       next;
     }
     if ($safe{$type}) {
@@ -191,6 +205,47 @@ sub warn_log {
   warn $msg."\n";
 }
 
+sub fs_fail {
+  my ($self,$msg,$file,$is_dir)=@_;
+  my ($user,$group);
+  if ($^O eq 'MSWin32') {
+    my $ok=try {
+      require Win32;
+    } catch {
+      $self->warn_log("For whatever reason, your MSWin32 perl distribution does not have Win32.pm, or it failed to load for some other reason. The error provided by Perl is '$_'. Please report this to your system administrator, the packager for your Perl distribution, and the IPWS developers.");
+    };
+    if ($ok) {
+      try {
+        $user=Win32::LoginName();
+      } catch {
+        $self->warn_log("For whatever reason, your MSWin32 perl distribution's Win32.pm failed to figure out this server's username. The error provided by Perl is '$_'. Please report this to your system administrator, the packager for your Perl distribution, and the IPWS developers.");
+      }
+      $group="[N/A]";
+    }
+  }else{
+    try {
+      ($user,$group)=(getpwuid($>), getgrgid($))); # yes, I want effective user/group.
+    } catch {
+      $self->warn_log("For whatever reason, your non-MSWin32 operating system ($^O) does not support getpwuid and getgrgid. The error provided by Perl is '$_'. Please report this to your system administrator, the packager for your Perl distribution, and the IPWS developers.");
+    }
+  }
+  require File::Spec::Functions;
+  my $path=File::Spec::Functions::abs2rel(File::Spec::Functions::rel2abs($file),$self->home);
+  if ($is_dir) {
+    return ($msg." ".
+      $self->l("To solve this issue, please grant read, write and execute permissions to user '[_1]' and/or group '[_2]' on the folder '[_3]'",
+        $user,$group,$path
+      )
+    );
+  } else {
+    return ($msg." ".
+      $self->l("To solve this issue, please grant read and write permissions to user '[_1]' and/or group '[_2]' on the file '[_3]'",
+        $user,$group,$path
+      )
+    );
+  }
+}
+
 sub moniker {'ipws'}
 
 sub conf_file {
@@ -217,10 +272,11 @@ sub run_sql {
   }
   close FIL;
   my $msh=DBIx::MultiStatementDo->new(dbh => $self->db);
-  eval {
+  try {
     $msh->do($slurp);
-  };
-  $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$msh->dbh->errstr || $@)) if $@;
+  } catch {
+    $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$msh->dbh->errstr || $_));
+  }
 }
 
 1;

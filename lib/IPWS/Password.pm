@@ -37,6 +37,7 @@ use Math::Random::Secure qw(irand);
 use IPWS::Password::Revision;
 use Math::Round qw(nhimult);
 use List::Util qw(first);
+use Mojo::Util qw(secure_compare);
 
 our $VERSION='0.1';
 our %opts=(
@@ -48,8 +49,8 @@ our $latest_rev;
 sub create {
 	my ($class,$user,$password)=@_;
 	my $salt=gen_salt();
-	my $hash=hmac_hex($opts{hash},$salt,$password);
-	$user->salt($salt);
+	my $hash=hmac_hex($latest_rev->hash,$salt,$password);
+	$user->salt(unpack 'h*', $salt);
 	$user->password($hash);
 	$user->pwrev($latest_rev);
 	$user->save;
@@ -59,8 +60,8 @@ sub check {
 	my ($class,$user,$password)=@_;
 	my $rev=$user->pwrev;
 	if ($rev->libver le '0.1') {
-		my $check=hmac_hex($rev->hash,$user->salt,$password);
-		return $user->password eq $check;
+		my $check=hmac_hex($rev->hash,pack('h*', $user->salt),$password);
+		return secure_compare($user->password,$check);
 	}else{
 		die "Unknown Password.pm revision in check() pwrev. Contact your system administrator for assistance.\n";
 	}
@@ -71,13 +72,15 @@ sub check {
 # and offered an opportunity to change their password to use the stronger salt.
 sub gen_salt {
 	my $salt='';
-	my @steps=map {256**$_} 0..4;
-	foreach (1..nhimult(4,$opts{salt_size})/4) {
+	my $step=256;
+	my $n_steps=4;
+	my @steps=map {$step**$_} 0..$n_steps;
+	foreach (1..nhimult($n_steps,$opts{salt_size})/$n_steps) {
 		my $val=irand;
-		foreach (1..4) {
+		foreach (1..$n_steps) {
 			my $temp=$val % $steps[$_];
 			$val-=$temp;
-			$salt.=chr $temp/$steps[$_-1];
+			$salt.=chr($temp/$steps[$_-1]);
 		}
 	}
 	return $salt;

@@ -7,9 +7,10 @@ __PACKAGE__->meta->setup(
 	columns => [
 		id => {type => 'serial', primary_key => 1, not_null => 1},
 		login => {type => 'varchar', length => 255, not_null => 1},
-		password => {type => 'char', length => 128, not_null => 1},
-		salt => {type => 'char', length => 128, not_null => 1},
+		password => {type => 'varchar', length => 255, not_null => 1},
+		salt => {type => 'varchar', length => 255, not_null => 1},
 		pwrevid => {type => 'int', not_null => 1, default => 1},
+		force_change_pw => {type => 'boolean', default => 0},
 		email => {type => 'varchar', length => 255},
 		emailok => {type => 'boolean', default => 0},
 		ctime => {type => 'timestamp', not_null => 1, default => 'current_timestamp', time_zone => "UTC"},

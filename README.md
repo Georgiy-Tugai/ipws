@@ -12,6 +12,7 @@ Dependencies
 - CryptX
 - Math::Round
 - Text::Password::Pronounceable
+- Try::Tiny
 
 Planned Feature list
 --------------------

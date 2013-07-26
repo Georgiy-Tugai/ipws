@@ -3,9 +3,10 @@ CREATE TABLE IF NOT EXISTS users
 (
 id INTEGER PRIMARY KEY ASC,
 login varchar(255) NOT NULL UNIQUE,
-salt varbinary(255) NOT NULL,
+salt varchar(255) NOT NULL,
 password varchar(255) NOT NULL,
-pwrevid int,
+pwrevid int NOT NULL,
+force_change_pw boolean DEFAULT 0, -- temporary password
 email varchar(255),
 emailok boolean NOT NULL DEFAULT 0, -- email validated
 ctime datetime DEFAULT current_timestamp, -- creation time
