@@ -19,6 +19,11 @@ __PACKAGE__->meta->setup(
 		users => {
 			type => 'many to many',
 			map_class => 'IPWS::Map::UserGroup'
+		},
+		perms => {
+			type => 'one to many',
+			class => 'IPWS::Group::Perm',
+			key_columns => {id => 'groupid'}
 		}
 	]
 );

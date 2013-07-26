@@ -9,6 +9,9 @@ Dependencies
       - Mojolicious::Plugin::YamlConfig
       - Mojolicious::Plugin::Database
 - Rose::DB::Object
+- CryptX
+- Math::Round
+- Text::Password::Pronounceable
 
 Planned Feature list
 --------------------

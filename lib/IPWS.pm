@@ -5,10 +5,13 @@ use DBIx::MultiStatementDo;
 use YAML::Tiny qw(Dump);
 use Mojo::Base 'Mojolicious';
 use IPWS::DB;
+
+use IPWS::Wiki;
+use IPWS::Blog;
 our $VERSION='0.1';
 our @svcs;
 our @res_path=qw(/ /admin);
-our $cfg_ver='0.1.1';
+our $cfg_ver='0.1.2';
 our $db;
 
 # This method will run once at server start
@@ -47,6 +50,10 @@ sub startup {
         'path' => '/blog'
       }
     },
+    'sec' => {
+      'hash' => 'SHA512',
+      'salt_size' => 64
+    },
     'debug' => 1 # FIXME: switch debug default to 0 for release
   );
   if (!-e $self->conf_file) { #XXX: Migrate (default) config into a seperate module!
@@ -78,11 +85,31 @@ sub startup {
   $self->helper('db' => sub {IPWS::DB->new_or_cached('main')->dbh});
 
   $self->init_database();
-  #local $db=$self->db();
-  
-  require IPWS::Wiki;
-  require IPWS::Blog;
 
+  require IPWS::Password;
+  IPWS::Password->latest_rev($self);
+  
+  require IPWS::Group;
+  my $def_grp=IPWS::Group->new(id => 0, name => "default");
+  unless ($def_grp->load(speculative => 1)) {
+    $self->warn_log("Default group (name=default, id=0) not found, creating...");
+    $def_grp->add_perms([
+      {name => "login"}
+    ]);
+    $def_grp->save;
+  }
+  
+  require IPWS::User;
+  my $adm_user=IPWS::User->new(id => 0, login => "root");
+  unless ($adm_user->load(speculative => 1)) {
+    $self->warn_log("Admin account (login=root, id=0) not found, creating...");
+    require Text::Password::Pronounceable;
+    my $pw=Text::Password::Pronounceable->generate(8,12);
+    $self->warn_log("ADMIN PASSWORD: $pw");
+    IPWS::Password->create($adm_user,$pw);
+    $adm_user->save;
+  }
+  
   # Router
   my $r = $self->routes;
 
