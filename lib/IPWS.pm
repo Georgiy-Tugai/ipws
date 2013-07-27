@@ -16,6 +16,41 @@ our @res_id=qw(admin core);
 our $cfg_ver='0.1.2';
 our $db;
 
+our %cfg_defaults=(
+  'config_version' => $cfg_ver,
+  'db' => {
+    #'dsn' => 'dbi:SQLite:dbname=ipws.sqlite',
+    'driver' => 'SQLite',
+    'database' => 'ipws.sqlite',
+    'host' => '',
+    'port' => '',
+    'username' => '',
+    'password' => '',
+    'prefix' => ''
+  },
+  'lang' => 'en',
+  'svcs' => {
+    'wiki' => {
+      'type' => 'Wiki',
+      'name' => 'IPWS Wiki',
+      'path' => '/wiki'
+    },
+    'blog' => {
+      'type' => 'Blog',
+      'name' => 'IPWS Blog',
+      'path' => '/blog'
+    }
+  },
+  'sec' => {
+    'hash' => 'SHA512',
+    'salt_size' => 64
+  },
+  'log' => {
+    'level' => 'debug'
+  },
+  'debug' => 1 # FIXME: switch debug default to 0 for release
+);
+
 # This method will run once at server start
 sub startup {
   my $self = shift;
@@ -23,45 +58,26 @@ sub startup {
   $self->{_ipws}={};
   $self->attr('ipws' => sub {$_[0]->{_ipws}});
  
-  our %defaults=(
-    'config_version' => $cfg_ver,
-    'db' => {
-      #'dsn' => 'dbi:SQLite:dbname=ipws.sqlite',
-      'driver' => 'SQLite',
-      'database' => 'ipws.sqlite',
-      'host' => '',
-      'port' => '',
-      'username' => '',
-      'password' => '',
-      'prefix' => ''
-    },
-    'lang' => 'en',
-    'svcs' => {
-      'wiki' => {
-        'type' => 'Wiki',
-        'name' => 'IPWS Wiki',
-        'path' => '/wiki'
-      },
-      'blog' => {
-        'type' => 'Blog',
-        'name' => 'IPWS Blog',
-        'path' => '/blog'
-      }
-    },
-    'sec' => {
-      'hash' => 'SHA512',
-      'salt_size' => 64
-    },
-    'debug' => 1 # FIXME: switch debug default to 0 for release
-  );
   if (!-e $self->conf_file) { #XXX: Migrate (default) config into a seperate module!
     $self->log->info("Generating default configuration file.");
     open CONF, '>:encoding(UTF-8)', $self->conf_file or die $!;
-    print CONF Dump(\%defaults);
+    print CONF Dump(\%cfg_defaults);
     close CONF;
     exit;
   }
-  $self->plugin('YamlConfig');
+  
+  #This little rigmarole is needed since the config loading process itself logs a [debug] message.
+  #Make sure to switch debug=0 and log->level to info or above in defaults for release!
+  
+  $self->log->level($defaults->{'log'}->{'level'}) unless $defaults->{'debug'};
+  
+  $self->plugin('YamlConfig',
+    default => \%cfg_defaults
+  );
+  
+  $self->log->level('debug');
+  
+  $self->log->level($self->config('log')->{level}) unless $self->config('debug');
   
   my $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || $self->config('lang') || 'en') || $self->die_log($self->l("Can't find a language file for [_1], perhaps try 'en'?",$self->config('lang')));
   $self->attr('i18n' => sub {$in});
