@@ -196,13 +196,13 @@ sub a2h {map {$_,1} @_}
 sub die_log {
   my ($self,$msg)=@_;
   $self->log->fatal($msg);
-  die $msg."\n";
+  die $self->log->format(fatal => $msg) if $self->log->is_fatal;
 }
 
 sub warn_log {
   my ($self,$msg)=@_;
-  $self->log->error($msg);
-  warn $msg."\n";
+  $self->log->info($msg);
+  warn $self->log->format(info => $msg) if $self->log->is_info;
 }
 
 sub fs_fail {
