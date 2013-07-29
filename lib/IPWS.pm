@@ -69,7 +69,7 @@ sub startup {
   #This little rigmarole is needed since the config loading process itself logs a [debug] message.
   #Make sure to switch debug=0 and log->level to info or above in defaults for release!
   
-  $self->log->level($defaults->{'log'}->{'level'}) unless $defaults->{'debug'};
+  $self->log->level($cfg_defaults{'log'}->{'level'}) unless $cfg_defaults{'debug'};
   
   $self->plugin('YamlConfig',
     default => \%cfg_defaults
@@ -96,7 +96,8 @@ sub startup {
   }
   
   IPWS::DB->startup($self);
-  $self->helper('db' => sub {IPWS::DB->new_or_cached('main')->dbh});
+  my $rose_dbh=IPWS::DB->new('main');
+  $self->helper('db' => sub {$rose_dbh->dbh});
 
   $self->init_database();
 
@@ -287,12 +288,18 @@ sub run_sql {
     $slurp.=$_;
   }
   close FIL;
-  my $msh=DBIx::MultiStatementDo->new(dbh => $self->db);
+  my $msh;
+  # This horrible kludge is needed to solve an issue with 'bare' warnings from DBI getting into STDERR.
   try {
+    local $SIG{__WARN__}=sub{
+      local $SIG{__WARN__}=sub{};
+      $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$msh->dbh->errstr || @_));
+    };
+    my $dbh=$self->db;
+    local $dbh->{RaiseError}=0;
+    $msh=DBIx::MultiStatementDo->new(dbh => $dbh);
     $msh->do($slurp);
-  } catch {
-    $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$msh->dbh->errstr || $_));
-  }
+  };
 }
 
 1;
