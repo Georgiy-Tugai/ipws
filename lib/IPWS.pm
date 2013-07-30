@@ -214,13 +214,13 @@ sub a2h {map {$_,1} @_}
 
 sub die_log {
   my ($self,$msg)=@_;
-  $self->log->fatal($msg);
+  $self->log->fatal($msg) unless $self->log->handle() eq \*STDERR;
   die $self->log->format(fatal => $msg) if $self->log->is_fatal;
 }
 
 sub warn_log {
   my ($self,$msg)=@_;
-  $self->log->info($msg);
+  $self->log->info($msg) unless $self->log->handle() eq \*STDERR;
   warn $self->log->format(info => $msg) if $self->log->is_info;
 }
 
@@ -294,17 +294,20 @@ sub run_sql {
   }
   close FIL;
   my $msh;
-  # This horrible kludge is needed to solve an issue with 'bare' warnings from DBI getting into STDERR.
-  try {
+  
+  # This horrible kludge is needed to solve an issue with 'bare' warnings from DBI getting into STDERR.  
+  my $rethrow;
+  eval {
     local $SIG{__WARN__}=sub{
-      local $SIG{__WARN__}=sub{};
-      $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$msh->dbh->errstr || @_));
+      $rethrow=join(' ',@_);
+      chomp $rethrow;
     };
     my $dbh=$self->db;
-    local $dbh->{RaiseError}=0;
     $msh=DBIx::MultiStatementDo->new(dbh => $dbh);
     $msh->do($slurp);
   };
+  $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$msh->dbh->errstr || $rethrow || $@)) if $rethrow || $@;
+  # End horrible kludge
 }
 
 1;
