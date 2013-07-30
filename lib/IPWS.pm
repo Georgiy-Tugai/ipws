@@ -57,7 +57,9 @@ sub startup {
   
   $self->{_ipws}={};
   $self->attr('ipws' => sub {$_[0]->{_ipws}});
- 
+  
+  $self->secret('Never use the builtin cookie system, it uses SHA1-HMAC. NOT PARANOID ENOUGH!'); # Make sure to actually follow this instruction :p
+  
   if (!-e $self->conf_file) { #XXX: Migrate (default) config into a seperate module!
     $self->log->info("Generating default configuration file.");
     open CONF, '>:encoding(UTF-8)', $self->conf_file or die $!;
@@ -129,7 +131,7 @@ sub startup {
       value => 'delete-password-file'
     });
     open(my $pwfil, '>:encoding(UTF-8)', 'root-password.txt') or
-      $self->fs_fail($self->l("Can't save root password! ([_1])",$@),'root-password.txt');
+      $self->die_log(fs_fail($self->l("Can't save root password! ([_1])",$@),'root-password.txt'));
     print $pwfil "$pw\n";
     close $pwfil;
     $adm_user->save;
