@@ -7,7 +7,7 @@ use Mojo::Base 'Mojolicious';
 use IPWS::DB;
 use Try::Tiny;
 use File::Path qw(make_path);
-use File::Spec::Functions qw(rel2abs abs2rel file_name_is_absolute);
+use File::Spec::Functions qw(rel2abs abs2rel file_name_is_absolute catfile);
 
 use IPWS::Wiki;
 use IPWS::Blog;
@@ -62,16 +62,26 @@ sub startup {
   my $self = shift;
   
   $self->{_ipws}={};
-  $self->attr('ipws' => sub {$_[0]->{_ipws}});
+  $self->helper('ipws' => sub {$self->{_ipws}});
   
   $self->secret('Never use the builtin cookie system, it uses SHA1-HMAC. NOT PARANOID ENOUGH!'); # Make sure to actually follow this instruction :p
   
+  # I18N stage 1
+  my $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || 'en') || $self->die_log(sprintf("Can't find a language file for %s, perhaps try 'en'?",$ENV{IPWS_LANG}));
+  $self->helper(l => sub {my $s=shift;$in->maketext(@_)});
+  
+  my $_conf_gen_error;
   if (!-e $self->conf_file) { #XXX: Migrate (default) config into a seperate module!
-    $self->log->info("Generating default configuration file.");
-    open CONF, '>:encoding(UTF-8)', $self->conf_file or die $!;
-    print CONF Dump(\%cfg_defaults);
-    close CONF;
-    exit;
+    $self->warn_log($self->l("Generating default configuration file."));
+    try {
+      open CONF, '>:encoding(UTF-8)', $self->conf_file or die "$!.\n";
+      print CONF Dump(\%cfg_defaults);
+      close CONF;
+      exit; # FIXME: Should we exit after generating default config? Might be confusing in some cases.
+    } catch {
+      chomp;
+      $_conf_gen_error=$_;
+    }
   }
   
   #This little rigmarole is needed since the config loading process itself logs a [debug] message.
@@ -85,13 +95,33 @@ sub startup {
   $self->{log}=Mojo::Log->new;
   $self->log->level('debug');
   $self->log->level($self->config('log')->{level}) unless $self->config('debug');
-  $self->log->path(rel2abs($self->config('log')->{path}.$self->mode.'.log',$self->home));
+  {
+    my $log_path=rel2abs($self->config('log')->{path},$self->home);
+    my $log_file=catfile($log_path,$self->mode.'.log');
+    try {
+      make_path($log_path);
+    } catch {
+      chomp;
+      s/ at .*?\.pm line \d+\.//;
+      $self->warn_log($self->fs_fail($self->l("Can't create log folder: [_1].",$_),$log_path,
+        dir => 1
+      ));
+    } or do {
+      if ((-e $log_file && -w $log_file) || -w $log_path) {
+        $self->log->path($log_file);
+      } else {
+        $self->warn_log($self->fs_fail($self->l("Can't create/write log file."),$log_file));
+      }
+    }
+  }
   $die_color=$self->config('log')->{color};
   
-  # I18N
-  my $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || $self->config('lang') || 'en') || $self->die_log($self->l("Can't find a language file for [_1], perhaps try 'en'?",$self->config('lang')));
-  $self->attr('i18n' => sub {$in});
-  $self->helper(l => sub {my $s=shift;$s->app->i18n()->maketext(@_)});
+  $self->warn_log($self->fs_fail($self->l("Could not save default configuration file: [_1]".$_conf_gen_error),$self->conf_file)) if $_conf_gen_error;
+  
+  # I18N stage 2
+  $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || $self->config('lang') || 'en') || $self->die_log($self->l("Can't find a language file for [_1], perhaps try 'en'?",$self->config('lang')));
+  delete $self->{renderer}->{helpers}->{l};
+  $self->helper(l => sub {my $s=shift;$in->maketext(@_)});
   
   # Config version check
   if (!$self->config('config_version') || $self->config('config_version') lt $cfg_ver) { #old config!
@@ -164,30 +194,11 @@ sub startup {
   # Services
   $self->ipws()->{svcs}={};
   $self->attr('svcs' => sub {$_[0]->ipws()->{svcs}->{$_[1]}});
-  my %safe=a2h(@svcs);
-  my %resr_p=a2h(@res_path);
-  my %resr_i=a2h(@res_id);
   foreach (sort {&sort_routes} keys %{$self->config('svcs')}) {
-    my $cfg=$self->config('svcs')->{$_};
-    my $type=$cfg->{'type'};
-    if (!$$cfg{'path'}) {
-      $self->warn_log($self->l("Service of type [_1] (id=[_2]) does not have a path. Service disabled.",$type,$_));
-      next;
-    }
-    if ($resr_p{$$cfg{path}}) {
-      $self->warn_log($self->l("Service [_1] ([_2]) is on a reserved path '[_3]'. Service disabled.",$_,$type,$$cfg{path}));
-      next;
-    }
-    if ($resr_i{$_}) {
-      $self->warn_log($self->l("Service [_1] ([_2]) has a reserved ID. Service disabled.",$_,$type));
-      next;
-    }
-    if ($safe{$type}) { # Actually load the service
-      $self->ipws()->{svcs}->{$_}="IPWS::$type"->new();
-      my $r2=$r->under($$cfg{path});#->detour($svcs->{$_},{base => $_,id => $cfg->{'id'}});
-      $self->ipws()->{svcs}->{$_}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
-    }else{
-      $self->die_log($self->l("Unknown service [_1] (id=[_2])",$type,$_));
+    try {
+      $self->load_svc($_);
+    } catch {
+      $self->warn_log($_);
     }
   }
 
@@ -208,6 +219,35 @@ sub startup {
         }
       }
     });
+  }
+}
+
+sub load_svc {
+  my ($self,$id)=@_;
+  my %safe=a2h(@svcs);
+  my %resr_p=a2h(@res_path);
+  my %resr_i=a2h(@res_id);
+  my $cfg=$self->config('svcs')->{$id};
+  my $type=$cfg->{'type'};
+  if (!$$cfg{'path'}) {
+    die($self->l("Service of type [_1] (id=[_2]) does not have a path. Service disabled.",$type,$id)."\n");
+  }
+  if ($resr_p{$$cfg{path}}) {
+    die($self->l("Service [_1] ([_2]) is on a reserved path '[_3]'. Service disabled.",$id,$type,$$cfg{path})."\n");
+  }
+  if ($resr_i{$id}) {
+    die($self->l("Service [_1] ([_2]) has a reserved ID. Service disabled.",$id,$type)."\n");
+  }
+  if ($safe{$type}) { # Actually load the service
+    $self->log->debug("Loading service $id...");
+    $self->ipws()->{svcs}->{$id}="IPWS::$type"->new();
+    $self->log->debug("Routing service $id...");
+    my $r2=$self->routes->under($$cfg{path});#->detour($svcs->{$id},{base => $id,id => $cfg->{'id'}});
+    $self->log->debug("Starting service $id...");
+    $self->ipws()->{svcs}->{$id}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
+    $self->log->debug("Service $id ready.");
+  }else{
+    die($self->l("Unknown service [_1] (id=[_2])",$type,$id)."\n");
   }
 }
 
@@ -252,8 +292,8 @@ sub warn_log {
 }
 
 sub fs_fail {
-  my ($self,$msg,$file,$is_dir)=@_;
-  my ($user,$group);
+  my ($self,$msg,$file,%opts)=@_;
+  my ($user,$group,$groupextra);
   if ($^O eq 'MSWin32') {
     my $ok=try {
       require Win32;
@@ -270,25 +310,32 @@ sub fs_fail {
     }
   }else{
     try {
-      ($user,$group)=(getpwuid($>), getgrgid($))); # yes, I want effective user/group.
+      require POSIX;
+      #($user,$group)=(getpwuid($>), getgrgid($))); # yes, I want effective user/group.
+      $user=getpwuid($>);
+      my @groups=map {(getgrgid($_))[0]} POSIX::getgroups();
+      $group=shift @groups;
+      $groupextra=' ('.$self->l("or any of: [_1]",join(",",@groups)).')' if @groups;
     } catch {
-      $self->warn_log("For whatever reason, your non-MSWin32 operating system ($^O) does not support getpwuid and getgrgid. The error provided by Perl is '$_'. Please report this to your system administrator, the packager for your Perl distribution, and the IPWS developers.");
+      $self->warn_log("For whatever reason, your non-MSWin32 operating system ($^O) does not support getpwuid and/or getgrgid and/or POSIX. The error provided by Perl is '$_'. Please report this to your system administrator, the packager for your Perl distribution, and the IPWS developers.");
     }
   }
   
   my $path=abs2rel(rel2abs($file),$self->home);
   my $ret;
-  if ($is_dir) {
+  if ($opts{dir}) {
+    $opts{suffix}=", ".$self->l("or create the folder yourself").($opts{suffix} || '') unless -e $path or $opts{no_creat};
     $ret=($msg." ".
-      $self->l("To solve this issue, please grant read, write and execute permissions to user '[_1]' and/or group '[_2]' on the folder '[_3]'",
-        $user,$group,$path
-      )
+      $self->l("To solve this issue, please grant read, write and execute permissions to user '[_1]' and/or group '[_2]'[_3] on the folder '[_4]'",
+        $user,$group,$groupextra,$path
+      ).$opts{suffix}
     );
   } else {
+    $opts{suffix}=", ".$self->l("or it's containing folder").($opts{suffix} || '') unless -e $path or $opts{no_cont};
     $ret=($msg." ".
-      $self->l("To solve this issue, please grant read and write permissions to user '[_1]' and/or group '[_2]' on the file '[_3]'",
-        $user,$group,$path
-      )
+      $self->l("To solve this issue, please grant read and write permissions to user '[_1]' and/or group '[_2]'[_3] on the file '[_4]'",
+        $user,$group,$groupextra,$path
+      ).$opts{suffix}
     );
   }
   return $ret if defined wantarray; # die_log if called in void context
