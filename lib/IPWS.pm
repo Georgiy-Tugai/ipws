@@ -6,6 +6,8 @@ use YAML::Tiny qw(Dump LoadFile);
 use Mojo::Base 'Mojolicious';
 use IPWS::DB;
 use Try::Tiny;
+use File::Path qw(make_path);
+use File::Spec::Functions qw(rel2abs abs2rel file_name_is_absolute);
 
 use IPWS::Wiki;
 use IPWS::Blog;
@@ -16,6 +18,7 @@ our @res_id=qw(admin core);
 our $cfg_ver='0.1.2';
 our $db;
 
+our $die_color=1; # FIXME: Switch $die_color to 0 for release?
 our %cfg_defaults=(
   'config_version' => $cfg_ver,
   'db' => {
@@ -46,7 +49,10 @@ our %cfg_defaults=(
     'salt_size' => 64
   },
   'log' => {
-    'level' => 'debug'
+    'level' => 'debug',
+    'color' => 1, # FIXME: switch color default to 0 for release!
+    'to_file' => 1,
+    'path' => 'log/'
   },
   'debug' => 1 # FIXME: switch debug default to 0 for release
 );
@@ -71,41 +77,47 @@ sub startup {
   #This little rigmarole is needed since the config loading process itself logs a [debug] message.
   #Make sure to switch debug=0 and log->level to info or above in defaults for release!
   
+  $self->log->path('');
   $self->log->level($cfg_defaults{'log'}->{'level'}) unless $cfg_defaults{'debug'};
-  
   $self->plugin('YamlConfig',
     default => \%cfg_defaults
-  );
-  
+  ); # Config is now loaded
+  $self->{log}=Mojo::Log->new;
   $self->log->level('debug');
-  
   $self->log->level($self->config('log')->{level}) unless $self->config('debug');
+  $self->log->path(rel2abs($self->config('log')->{path}.$self->mode.'.log',$self->home));
+  $die_color=$self->config('log')->{color};
   
+  # I18N
   my $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || $self->config('lang') || 'en') || $self->die_log($self->l("Can't find a language file for [_1], perhaps try 'en'?",$self->config('lang')));
   $self->attr('i18n' => sub {$in});
   $self->helper(l => sub {my $s=shift;$s->app->i18n()->maketext(@_)});
   
+  # Config version check
   if (!$self->config('config_version') || $self->config('config_version') lt $cfg_ver) { #old config!
     $self->die_log($self->l("Configuration file is outdated (version=[_1]) -- there may have been incompatible changes to the schema. PLEASE CHECK THE DOCUMENTATION and then change config_version to [_2]. We'll implement automatic configuration upgrading sometime.",$self->config('config_version'),$cfg_ver));
   }
   if ($self->config('config_version') gt $cfg_ver) {
     $self->warn_log($self->l("Configuration file is from the future (version=[_1]) -- there may have been incompatible changes to the schema. PLEASE CHECK THE DOCUMENTATION and then change config_version to [_2]. Automatic configuration downgrading will never be implemented. Caveat emptor!",$self->config('config_version'),$cfg_ver));
   }
-  
+  # Config RTFM check, may be removed later
   if ($self->config('rtfm')) { #TODO: Write The Fucking Manual
     $self->log->error($self->l('Read The Fucking Manual - reconfigure me!'));
     die "RTFM! ".$self->l('Read The Fucking Manual - reconfigure me!')."\n";
   }
   
+  # Database fun begins here
   IPWS::DB->startup($self);
   my $rose_dbh=IPWS::DB->new('main');
   $self->helper('db' => sub {$rose_dbh->dbh});
 
   $self->init_database();
 
+  # Password REVs
   require IPWS::Password;
   IPWS::Password->latest_rev($self);
   
+  # Default group
   require IPWS::Group;
   my $def_grp=IPWS::Group->new(id => 0, name => "default");
   unless ($def_grp->load(speculative => 1)) {
@@ -116,6 +128,7 @@ sub startup {
     $def_grp->save;
   }
   
+  # Default user
   require IPWS::User;
   my $adm_user=IPWS::User->new(id => 0, login => "root");
   unless ($adm_user->load(speculative => 1)) {
@@ -130,12 +143,13 @@ sub startup {
       name => 'on-change-password',
       value => 'delete-password-file'
     });
-    open(my $pwfil, '>:encoding(UTF-8)', 'root-password.txt') or
+    open(my $pwfil, '>:encoding(UTF-8)', $self->rel_file('root-password.txt')) or
       $self->die_log(fs_fail($self->l("Can't save root password! ([_1])",$@),'root-password.txt'));
     print $pwfil "$pw\n";
     close $pwfil;
     $adm_user->save;
     $self->warn_log($self->l("The password for your new 'root' account is in '[_1]'",$self->app->home->rel_file('root-password.txt')));
+    $ENV{HARNESS_ACTIVE}=1; # Don't spew help
   }
   
   # Router
@@ -147,6 +161,7 @@ sub startup {
     $_[0]->render('test');
     });
   
+  # Services
   $self->ipws()->{svcs}={};
   $self->attr('svcs' => sub {$_[0]->ipws()->{svcs}->{$_[1]}});
   my %safe=a2h(@svcs);
@@ -167,7 +182,7 @@ sub startup {
       $self->warn_log($self->l("Service [_1] ([_2]) has a reserved ID. Service disabled.",$_,$type));
       next;
     }
-    if ($safe{$type}) {
+    if ($safe{$type}) { # Actually load the service
       $self->ipws()->{svcs}->{$_}="IPWS::$type"->new();
       my $r2=$r->under($$cfg{path});#->detour($svcs->{$_},{base => $_,id => $cfg->{'id'}});
       $self->ipws()->{svcs}->{$_}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
@@ -215,13 +230,25 @@ sub a2h {map {$_,1} @_}
 sub die_log {
   my ($self,$msg)=@_;
   $self->log->fatal($msg) unless $self->log->handle() eq \*STDERR;
-  die $self->log->format(fatal => $msg) if $self->log->is_fatal;
+  if ($self->log->is_fatal) {
+    if ($die_color) {
+      require Term::ANSIColor;
+      $msg=Term::ANSIColor::colored($msg,'bold red');
+    }
+    die $self->log->format(fatal => $msg);
+  }
 }
 
 sub warn_log {
   my ($self,$msg)=@_;
   $self->log->info($msg) unless $self->log->handle() eq \*STDERR;
-  warn $self->log->format(info => $msg) if $self->log->is_info;
+  if ($self->log->is_info) {
+    if ($die_color) {
+      require Term::ANSIColor;
+      $msg=Term::ANSIColor::colored($msg,'bold yellow');
+    }
+    warn $self->log->format(info => $msg);
+  }
 }
 
 sub fs_fail {
@@ -248,8 +275,8 @@ sub fs_fail {
       $self->warn_log("For whatever reason, your non-MSWin32 operating system ($^O) does not support getpwuid and getgrgid. The error provided by Perl is '$_'. Please report this to your system administrator, the packager for your Perl distribution, and the IPWS developers.");
     }
   }
-  require File::Spec::Functions;
-  my $path=File::Spec::Functions::abs2rel(File::Spec::Functions::rel2abs($file),$self->home);
+  
+  my $path=abs2rel(rel2abs($file),$self->home);
   my $ret;
   if ($is_dir) {
     $ret=($msg." ".
@@ -282,7 +309,13 @@ sub init_database {
 
 sub run_sql {
   my ($self,$name)=@_;
-  my $f=$name.'.'.lc($self->db->{Driver}->{Name}).'.sql';
+  my $f;
+  try {
+    $f=$name.'.'.lc($self->db->{Driver}->{Name}).'.sql';
+  } catch {
+    chomp;
+    $self->die_log($self->l("Can't initialize database object: '[_1]'",$_));
+  };
   if (!-e $f) {
     $f=$name.'.sql';
     $self->die_log($self->l("No such sql file: [_1]",$f)) unless -e $f;
