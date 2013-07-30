@@ -250,19 +250,22 @@ sub fs_fail {
   }
   require File::Spec::Functions;
   my $path=File::Spec::Functions::abs2rel(File::Spec::Functions::rel2abs($file),$self->home);
+  my $ret;
   if ($is_dir) {
-    return ($msg." ".
+    $ret=($msg." ".
       $self->l("To solve this issue, please grant read, write and execute permissions to user '[_1]' and/or group '[_2]' on the folder '[_3]'",
         $user,$group,$path
       )
     );
   } else {
-    return ($msg." ".
+    $ret=($msg." ".
       $self->l("To solve this issue, please grant read and write permissions to user '[_1]' and/or group '[_2]' on the file '[_3]'",
         $user,$group,$path
       )
     );
   }
+  return $ret if defined wantarray; # die_log if called in void context
+  $self->die_log($ret);
 }
 
 sub moniker {'ipws'}
