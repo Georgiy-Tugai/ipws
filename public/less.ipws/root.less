@@ -58,16 +58,22 @@ html,body {
 
 .leftpanel {
 	.pcontent {
-		background-color: @contentbackground;
+		background-color: @contentbg;
 	}
 }
 
 .rightpanel {
 	.pcontent {
-		background-color: darken(@contentbackground,20%);
+		background-color: @contentrbg;
 	}
 }
 
 .widebutton {
 	width: 100%;
+	padding: 0;
+	margin: 0;
+	background: #fff;
+}
+.widebutton:after {
+	content: '<i class="icon-arrow-right" style="float: right"></i>';
 }

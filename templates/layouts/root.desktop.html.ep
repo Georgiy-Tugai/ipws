@@ -5,12 +5,18 @@
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" ><![endif]-->
 <!--[if gt IE 8]><!--><html class="no-js" lang="en" ><!--<![endif]-->
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <title>Foundation 4</title>  
-  <link rel="stylesheet" href="foundation/css/foundation<%= !$debug && '.min' %>.css">
-  <link rel="stylesheet" href="font-awesome/css/font-awesome<%= !$debug && '.min' %>.css">
-  <script src="foundation/js/vendor/custom.modernizr.js"></script>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width">
+	<title>Foundation 4</title>  
+	<link rel="stylesheet" href="foundation/css/foundation<%= !$debug && '.min' %>.css">
+	<link rel="stylesheet" href="font-awesome/css/font-awesome<%= !$debug && '.min' %>.css">
+	<script src="foundation/js/vendor/custom.modernizr.js"></script>
+	<script>
+		document.write('<script src=foundation/js/vendor/' +
+		('__proto__' in {} ? 'zepto' : 'jquery') +
+		'<%= !$debug && '.min' %>.js><\/script>');
+	</script>
+	<script src="foundation/js/foundation<%= !$debug && '.min' %>.js"></script>
 </head>
 <body>
 	<div id="all">
@@ -23,20 +29,46 @@
 				<ul class="left">
 					<li class="divider"></li>
 					% foreach (keys %$components) {
-					<li<%== ($_ eq $component ? ' class="active"' : '') %>><a href="<%= url_for $components->{$_} %>"><%= $_ %></a></li>
+						<li<%== ($_ eq $component ? ' class="active"' : '') %>>
+							<a href="<%= url_for $components->{$_} %>">
+								<%= $_ %>
+							</a>
+						</li>
 					% }
 				</ul>
 				<ul class="right">
 					% if ($user) {
 						% if ($is_admin) {
-						<li><a href="<%= url_for '/admin' %>"><%= l 'Global settings' %></a></li>
+							<li>
+								<a href="<%= url_for '/admin' %>">
+									<%= l 'Global settings' %>
+								</a>
+							</li>
 						% }
-						<li><a href="<%= url_for '/profile' %>"><%= $user %></a></li>
+						<li>
+							<a href="<%= url_for '/profile' %>">
+								<%= $user %>
+							</a>
+						</li>
 					% } else {
-						<li><a href="<%= url_for '/register' %>">Create an account</a></li>
+						<li>
+							<a href="<%= url_for '/register' %>">
+								Create an Account
+							</a>
+						</li>
 					% }
 					<li class="divider"></li>
-					<li><a href="<%= url_for $user ? '/logout' : '/login' %>"><%= ($user ? l 'Logout' : l 'Login') %></a></li>
+					<li>
+						% if (url_for $user) {
+							<a href="/logout">
+								Log Out
+							</a>
+						% } else {
+							<a href="#" data-reveal-id="login-modal">
+								Log In
+							</a>
+						% }
+					</li>
 				</ul>
 			</section>
 		</nav>
@@ -53,12 +85,23 @@
 			</div>
 		</div>
 	</div>
-<script>
-	document.write('<script src=foundation/js/vendor/' +
-	('__proto__' in {} ? 'zepto' : 'jquery') +
-	'<%= !$debug && '.min' %>.js><\/script>');
-</script>
-<script src="foundation/js/foundation<%= !$debug && '.min' %>.js"></script>
-<script>$(document).foundation();</script>
+	<div id="login-modal" class="reveal-modal">
+		<h2>Log In</h2>
+		<form method="post" href="/login">
+			<label for="username" class="right inline">
+				Username
+			</label>
+			<input type="text" id="username" name="username" />
+			<label for="password" class="right inline">
+				Password
+			</label>
+			<input type="password" id="password" name="password" />
+			<input type="submit" id="submit" name="submit" />
+		</form>
+		<a class="close-reveal-modal">&#215;</a>
+	</div>
+	<script>
+		$(document).foundation();
+	</script>
 </body>
 </html>
