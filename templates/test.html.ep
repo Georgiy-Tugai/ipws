@@ -1,2 +1,2 @@
-% layout 'root.desktop', leftpanel => '<a href="/wiki">/wiki</a><br /><a href="/blog">/blog</a><br /><a href="/admin">/admin</a>', title => 'title', navbar => 'navbar', rightpanel => 'right panel';
+% layout 'root.desktop', leftpanel => '<a href="/wiki">/wiki</a><br /><a href="/blog">/blog</a><br /><a href="/admin">/admin</a>', title => 'IPWS', components => {'Wiki' => '/wiki','Blog' => '/blog'}, navbar => 'navbar', rightpanel => 'right panel';
 content

@@ -189,7 +189,7 @@ sub startup {
   $r->namespaces(['IPWS']);
   
   $r->route('/')->to(cb => sub {
-    $_[0]->render('test');
+    $_[0]->render('test', component => $_[0]->param('comp') || 'Admin');
     });
   
   # Services
