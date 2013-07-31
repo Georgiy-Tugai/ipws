@@ -1,0 +1,58 @@
+% our $error=param 'error'
+
+<div style="font-size: 200%;" class="error">
+	<%== $error %>!
+</div>
+<div class="error>
+	<%= my $messages = {
+		"200" => "Everything's OK!  Not sure why you're seeing this error message though...",
+		"400" => "Your request is broken...",
+		"401" => "Requrest unauthorised: You do not have permission to go here.  Try logging in <a href=\"login\">here</a>.",
+		"403" => "Request forbidden: You shall not pass!",
+		"404" => "The page you were looking for seems to have evaporated into space. SPAAACE!",
+		"405" => "Method not allowed.  Try a different method, I suppose?",
+		"406" => "Unacceptable.  Totally unacceptable.",
+		"407" => "Hey you!  You need proxy authentication, stat!",
+		"408" => "Ding!  Timeout.",
+		"409" => "Cavalry forward, CHARGE!  Oh, sorry, this conflicted with something else.",
+		"410" => "Gone.  Vanished.  Been eaten by the giant document-eating dragon of the interwebs.  Whatever, you won't be seeing this page soon...",
+		"411" => "Length required (and not in centimeters, either.)",
+		"412" => "You failed to meet my preconditions!  I should banish you from the kingdom!",
+		"413" => "Yo request's so large, it didn't get accepted by this server!  Try a weightloss program.",
+		"414" => "Request URI is far too looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong.",
+		"414" => "You're trying to do <i>what</i> with a cassette tape?  Media type unsupported.",
+		"416" => "I'm afraid I can't give you that, it doesn't seen to be here.",
+		"417" => "I can't meet your expectations.  Sorry.",
+		"418" => "I cannot make coffee, I'm a teapot.  Fairly short and stout, too.",
+		"419" => "You've timed out!  You're going to have to log in again, <a href=\"login\">here</a>.",
+		"420" => "Zen quote #3.141592e42: <blockquote>Calm yourself and HTTP requests will succeed</blockquote>.",
+		"422" => "Your entity is unprocessable (Even after we upgraded from that 8Mhz processor).",
+		"423" => "Jail error: The resource is locked.",
+		"424" => "The art of dependency resolution: something you must obtain... (You don't appear to have it currently!)",
+		"425" => "Your collection is too untidy.  Please sort it out in order.",
+		"426" => "You must meet the following requirements: Lvl 17 HTTPS, Lvl 12 Stamina, Lvl 15 Internet Agility and Lvl 32+5i Epic Skills",
+		"428" => "We seem to need a precondition here.",
+		"429" => "Too many requests.  Please don't be greedy, you can't have everything.",
+		"431" => "Your request has a big head that won't fit through the door.",
+		"442" => "Deep thought",
+		"444" => "Knock knock, anyone in? Apparently not...",
+		"450" => "We'd better not be using this.",
+		"500" => "The server broke.  Care to fix it?",
+		"501" => "Not Implemented.  Damn lazy devs...",
+		"502" => "Bad gateway! Naughty!  No dessert for you.",
+		"503" => "Service unavailable.  It probably nicked off for some coffee, but it should be back soon."
+		"504" => "The gateway timed out.  Try the back door instead.",
+		"505" => "Your version looks weird.  Have you been messing around with spray glue and chihuahuas again?",
+		"506" => "Look up the RFC, this one's strange.",
+		"507" => "It won't fit!  No matter how hard I try, it's just a bit too big.",
+		"508" => "The server has detected a server has detected a server has detected a server has detected a server has detected a server has detected a server has detected a server has detected a server has detected a server has detected a server has detected a server has detected a server has detected a server has detected...",
+		"509" => "Your band isn't that wide!  You've exceeded it, too.",
+		"510" => "Contracted.",
+		"511" => "Can you tell if this network is real or fake?  Please authenticate it.",
+		};
+	if(defined($messages{"$error"}){
+		print $messages{"$error"};
+	} else {
+		print "Error: This error countains an error.";
+	} %>
+</div>
