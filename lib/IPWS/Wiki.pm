@@ -1,11 +1,17 @@
 package IPWS::Wiki;
 use Mojo::Base 'Mojo';
+use curry;
 use Data::Dumper;
 push @IPWS::svcs, 'Wiki';
 #sub new {
 #	my ($class)=@_;
 #	return bless {}, $class;
 #}
+
+sub startup {
+	my ($self,$r,$cfg)=@_;
+	$r->route('/')->to(cb => $self->curry::handler);
+}
 
 sub handler {
 	my ($self, $c) = @_;

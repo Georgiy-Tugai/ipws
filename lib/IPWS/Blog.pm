@@ -1,5 +1,5 @@
 package IPWS::Blog;
-use Mojo::Base 'Mojo';
+use Mojo::Base 'IPWS::Service';
 use Data::Dumper;
 use feature 'switch';
 use curry;
@@ -17,20 +17,9 @@ sub startup {
 	$self->{cfg}=$cfg;
 }
 
-=begin comment
-sub before_routes {
-	my ($self,$c,$path)=@_;
-	if ($path=~m#^\/?(?:(\d+)(?:[.-/_][^/]+)?)?$#) { #/123.blog-post-title
-		$c->stash('post' => $1 || 0);
-		$self->drawPost($c);
-	}
-}
-=end
-=cut
-
 sub drawPost {
 	my ($self,$c)=@_;
-	$c->render(text => $self->_post($c->stash('post')).' in format '.$c->stash('format').' with suffix '.$c->stash('suf'));
+	$c->render(text => $self->_post($c->stash('post')).' in format '.$c->stash('format').' with suffix '.$c->stash('suf').' url:'.$c->url_for('/test').' stuff:'.$c->app->moniker);
 }
 
 sub handler {

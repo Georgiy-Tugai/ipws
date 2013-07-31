@@ -32,6 +32,9 @@ our %cfg_defaults=(
     'prefix' => ''
   },
   'lang' => 'en',
+  'base' => '/',
+  'static_base' => '/',
+  'title' => 'IPWS',
   'svcs' => {
     'wiki' => {
       'type' => 'Wiki',
@@ -183,14 +186,31 @@ sub startup {
     $ENV{HARNESS_ACTIVE}=1; # Don't spew help
   }
   
-  # Router
-  my $r = $self->routes;
-
-  $r->namespaces(['IPWS']);
+  # Static files
+  $self->helper(url_static => sub {
+    my ($self,$url)=@_;
+    my $u=Mojo::URL->new($self->config('static_base'));
+    push @{$u->path->parts}, @{Mojo::URL->new($url)->path->parts};
+    return $u;
+  });
   
-  $r->route('/')->to(cb => sub {
-    $_[0]->render('test', component => $_[0]->param('comp') || 'Admin');
-    });
+  $self->helper(url_static_db => sub {
+    my ($c,$url)=@_;
+    $url=~/^(.*)(\.[^.]+)$/;
+    $c->app->url_static($1.($c->param('debug') ? '' : '.min').$2);
+  });
+  
+  # Router
+  my $_r = $self->routes;
+  
+  my $r=$_r;
+  if ($self->config('base') ne '/') {
+    $r=$_r->bridge($self->config('base'))->to(title => $self->config('title'));
+  }
+
+  $self->helper(baseroutes => sub {$r});
+
+  $_r->namespaces(['IPWS']);
   
   # Services
   $self->ipws()->{svcs}={};
@@ -202,6 +222,10 @@ sub startup {
       $self->warn_log($_);
     }
   }
+  
+  $r->route('/')->to(cb => sub {
+    $_[0]->render('test', component => $_[0]->param('comp') || 'Admin', leftpanel => $_[0]->url_static('foundation'));
+    }, path => '/');
 
   if (0) { #TODO: It seems that we might not need this after all.
     $self->hook(before_routes => sub {
@@ -221,6 +245,22 @@ sub startup {
       }
     });
   }
+  $self->hook(around_action => sub {
+    my ($next,$c,$action,$last)=@_;
+    my $path=$c->req->url->path;
+    my $base=$c->app->config('base');
+    return $next->() unless $path=~/^$base/;
+    foreach (keys %{$self->ipws()->{svcs}}) {
+      my %cfg=%{$self->config('svcs')->{$_}};
+      if ($path=~/^$base$cfg{path}(.*)$/) {
+        $c->stash()->{path}=$1;
+        return $next->();
+      }
+    }
+    $path=~/^$base(.*)$/;
+    $c->stash()->{path}=$1;
+    return $next->();
+  });
 }
 
 sub load_svc {
@@ -240,13 +280,18 @@ sub load_svc {
     die($self->l("Service [_1] ([_2]) has a reserved ID. Service disabled.",$id,$type)."\n");
   }
   if ($safe{$type}) { # Actually load the service
-    $self->log->debug("Loading service $id...");
-    $self->ipws()->{svcs}->{$id}="IPWS::$type"->new();
-    $self->log->debug("Routing service $id...");
-    my $r2=$self->routes->under($$cfg{path});#->detour($svcs->{$id},{base => $id,id => $cfg->{'id'}});
-    $self->log->debug("Starting service $id...");
-    $self->ipws()->{svcs}->{$id}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
-    $self->log->debug("Service $id ready.");
+    try {
+      $self->log->debug("Loading service $id...");
+      $self->ipws()->{svcs}->{$id}="IPWS::$type"->new();
+      $self->log->debug("Routing service $id...");
+      my $r2=$self->baseroutes->under($$cfg{path});#->detour($svcs->{$id},{base => $id,id => $cfg->{'id'}});
+      $self->log->debug("Starting service $id...");
+      $self->ipws()->{svcs}->{$id}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
+      $self->log->debug("Service $id ready.");
+    } catch {
+      die $self->config('debug') ? "Error while loading service '$id': $_" : "Internal error while loading service!\n";
+      $self->log->error($_);
+    }
   }else{
     die($self->l("Unknown service [_1] (id=[_2])",$type,$id)."\n");
   }
