@@ -7,7 +7,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title><%= $title %>: <%= $component %></title>  
+	<title><%== "$title | $component | $sitename" %></title>
 	<link rel="stylesheet" href="foundation/css/foundation<%= !$debug && '.min' %>.css">
 	<link rel="stylesheet" href="font-awesome/css/font-awesome<%= !$debug && '.min' %>.css">
 	<script src="foundation/js/vendor/custom.modernizr.js"></script>
@@ -87,61 +87,40 @@
 			</div>
 		</div>
 	</div>
-	<div id="login-modal" class="reveal-modal">
-		<h2 class="hide-for-small">Log in or register</h2>
-		<div class="row">
-			<div class="small-12 large-6 columns" style="max-width: 40em">
-				<form method="post" href="/login"><!-- don't forget to AJAX this -->
-					<fieldset>
-						<legend>Log in</legend>
-						<div class="row">
-							<div class="large-2 columns hide-for-small">
-								<label for="username" class="right inline">
-									Username
-								</label>
-							</div>
-							<div class="large-10 columns">
-								<input type="text" id="username" name="username" placeholder="Username" />
-							</div>
-							<div class="large-2 columns hide-for-small">
-								<label for="password" class="right inline">
-								Password
-								</label>
-							</div>
-							<div class="large-10 columns">
-								<div class="row collapse">
-									<div class="small-8 columns"><input type="password" id="password" name="password" placeholder="Password"/></div>
-									<div class="small-4 columns"><button class="button postfix" type="submit">Forgot?</button></div>
-								</div>
-								<div class="row collapse" style="max-width: 20em;">
-									<div class="small-6 columns">
-										<button class="button expand" type="submit">Login</button>
-									</div>
-									<div class="small-6 columns">
-										<button class="button alert expand" type="submit">Cancel</button>
-									</div>
-								</div>
-							</div>
-					</fieldset>
-				</form>
+	<div id="login-modal" class="reveal-modal small">
+		<h3>Log In</h3>
+		<form method="post" action="/login">
+			<div class="row">
+				<div class="small-3 columns">
+					<div class="row">
+						<label for="username" class="right inline">
+							Username
+						</label>
+					</div>
+				</div>
+				<div class="small-9 columns">
+					<div class="row">
+						<input type="text" id="username" name="username" />
+					</div>
+				</div>
 			</div>
-			<div class="small-12 large-6 columns" style="max-width: 40em">
-				<form method="post" href="/register">
-					<fieldset>
-						<legend>Register</legend>
-						<div class="row">
-							<div class="large-2 columns hide-for-small">
-								<label class="right inline">Username</label>
-							</div>
-							<div class="large-10 columns">
-								<input type="text" name="username" placeholder="Username" />
-							</div>
-						</div>
-					</fieldset>
-				</form>
+			<div class="row">
+				<div class="small-3 columns">
+					<div class="row">
+						<label for="password" class="right inline">
+							Password
+						</label>
+					</div>
+				</div>
+				<div class="small-9 columns">
+					<div class="row">
+						<input type="password" id="password" name="password" />
+					</div>
+				</div>
 			</div>
-		</div>
-		<a class="close-reveal-modal">&#215;<i class="icon-close"></i></a>
+			<input type="submit" id="submit" name="submit" class="button right" value="Submit" />
+		</form>
+		<a class="close-reveal-modal"><i class="icon-close"></i></a>
 	</div>
 	<script>
 		document.write('<script src=foundation/js/vendor/' +
@@ -151,6 +130,11 @@
 	<script src="foundation/js/foundation<%= !$debug && '.min' %>.js"></script>
 	<script>
 		$(document).foundation();
+		$('#login-modal').foundation('reveal', {
+			opened: function(){
+				$('#username').focus();
+			}
+		});
 	</script>
 </body>
 </html>
