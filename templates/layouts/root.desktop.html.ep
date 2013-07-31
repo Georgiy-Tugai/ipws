@@ -2,6 +2,7 @@
 % our $user=param 'user';
 % our $is_admin=param 'admin';
 % our $debug=param 'debug';
+% our $sitename="Placeholder Site Name"; # TODO: Change this!
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" ><![endif]-->
 <!--[if gt IE 8]><!--><html class="no-js" lang="en" ><!--<![endif]-->
 <head>
@@ -24,18 +25,23 @@
 	<div id="all">
 		<nav class="top-bar" id="navbar" data-options="scrolltop:false">
 			<ul class="title-area">
-				<li class="name"><h1><a><%= $title %></a></h1></li>
+				<li class="name" style="background-color: #090909"><h1><a><%= $title %></a></h1></li>
 				<li class="toggle-topbar menu-icon"><a style="cursor: inherit"><span><%= l 'Menu' %></span></a></li>
 			</ul>
 			<section class="top-bar-section">
 				<ul class="left">
+					% {my $navItem=begin
+							<li<%== ($_[0] eq $component ? ' class="active"' : '') %>>
+								<a <%== $components->{$_[0]} ? 'href="'.url_for($components->{$_[0]}).'"' : '' %>>
+									<%= $_[0] %>
+								</a>
+							</li>
+						% end
+						%= $navItem->($component);
 					<li class="divider"></li>
-					% foreach (keys %$components) {
-						<li<%== ($_ eq $component ? ' class="active"' : '') %>>
-							<a href="<%= url_for $components->{$_} %>">
-								<%= $_ %>
-							</a>
-						</li>
+						% foreach (sort keys %$components) {
+							%= $navItem->($_) unless $_ eq $component;
+						% }
 					% }
 				</ul>
 				<ul class="right">
