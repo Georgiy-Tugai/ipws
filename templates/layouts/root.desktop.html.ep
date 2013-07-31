@@ -28,21 +28,46 @@
 				<ul class="left">
 					<li class="divider"></li>
 					% foreach (keys %$components) {
-					<li<%== ($_ eq $component ? ' class="active"' : '') %>><a href="<%= url_for $components->{$_} %>"><%= $_ %></a></li>
+						<li<%== ($_ eq $component ? ' class="active"' : '') %>>
+							<a href="<%= url_for $components->{$_} %>">
+								<%= $_ %>
+							</a>
+						</li>
 					% }
 				</ul>
 				<ul class="right">
 					% if ($user) {
 						% if ($is_admin) {
-						<li><a href="<%= url_for '/admin' %>"><%= l 'Global settings' %></a></li>
+							<li>
+								<a href="<%= url_for '/admin' %>">
+									<%= l 'Global settings' %>
+								</a>
+							</li>
 						% }
-						<li class="divider"></li>
-						<li><a href="<%= url_for '/profile' %>"><%= l('User:').$user %> <i class="icon-cog"></i></a></li>
+						<li>
+							<a href="<%= url_for '/profile' %>">
+								<%= $user %>
+							</a>
+						</li>
 					% } else {
-						<li><a href="<%= url_for '/register' %>"><%= l 'Create an account' %></a></li>
-						<li class="divider"></li>
+						<li>
+							<a href="<%= url_for '/register' %>">
+								Create an Account
+							</a>
+						</li>
 					% }
-					<li><a class="button" href="<%= url_for $user ? '/logout' : '/login' %>"><%= ($user ? l 'Logout' : l 'Login') %> <i class="icon-off"></i></a></li>
+					<li class="divider"></li>
+					<li>
+						% if ($user) {
+							<a href="<%= url_for '/logout' %>">
+								Log Out
+							</a>
+						% } else {
+							<a href="#" data-reveal-id="login-modal">
+								Log In
+							</a>
+						% }
+					</li>
 				</ul>
 			</section>
 		</nav>
@@ -59,12 +84,70 @@
 			</div>
 		</div>
 	</div>
-<script>
-	document.write('<script src=foundation/js/vendor/' +
-	('__proto__' in {} ? 'zepto' : 'jquery') +
-	'<%= !$debug && '.min' %>.js><\/script>');
-</script>
-<script src="foundation/js/foundation<%= !$debug && '.min' %>.js"></script>
-<script>$(document).foundation();</script>
+	<div id="login-modal" class="reveal-modal">
+		<h2 class="hide-for-small">Log in or register</h2>
+		<div class="row">
+			<div class="small-12 large-6 columns" style="max-width: 40em">
+				<form method="post" href="/login"><!-- don't forget to AJAX this -->
+					<fieldset>
+						<legend>Log in</legend>
+						<div class="row">
+							<div class="large-2 columns hide-for-small">
+								<label for="username" class="right inline">
+									Username
+								</label>
+							</div>
+							<div class="large-10 columns">
+								<input type="text" id="username" name="username" placeholder="Username" />
+							</div>
+							<div class="large-2 columns hide-for-small">
+								<label for="password" class="right inline">
+								Password
+								</label>
+							</div>
+							<div class="large-10 columns">
+								<div class="row collapse">
+									<div class="small-8 columns"><input type="password" id="password" name="password" placeholder="Password"/></div>
+									<div class="small-4 columns"><button class="button postfix" type="submit">Forgot?</button></div>
+								</div>
+								<div class="row collapse" style="max-width: 20em;">
+									<div class="small-6 columns">
+										<button class="button expand" type="submit">Login</button>
+									</div>
+									<div class="small-6 columns">
+										<button class="button alert expand" type="submit">Cancel</button>
+									</div>
+								</div>
+							</div>
+					</fieldset>
+				</form>
+			</div>
+			<div class="small-12 large-6 columns" style="max-width: 40em">
+				<form method="post" href="/register">
+					<fieldset>
+						<legend>Register</legend>
+						<div class="row">
+							<div class="large-2 columns hide-for-small">
+								<label class="right inline">Username</label>
+							</div>
+							<div class="large-10 columns">
+								<input type="text" name="username" placeholder="Username" />
+							</div>
+						</div>
+					</fieldset>
+				</form>
+			</div>
+		</div>
+		<a class="close-reveal-modal">&#215;<i class="icon-close"></i></a>
+	</div>
+	<script>
+		document.write('<script src=foundation/js/vendor/' +
+			('__proto__' in {} ? 'zepto' : 'jquery') +
+			'<%= !$debug && '.min' %>.js><\/script>');
+	</script>
+	<script src="foundation/js/foundation<%= !$debug && '.min' %>.js"></script>
+	<script>
+		$(document).foundation();
+	</script>
 </body>
 </html>
