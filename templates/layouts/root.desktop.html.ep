@@ -15,6 +15,9 @@
 		.row {
 			max-width: inherit;
 		}
+		.top-bar-section ul {
+			background-color: #111;
+		}
 	</style>
 </head>
 <body>
