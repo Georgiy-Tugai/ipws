@@ -2,12 +2,13 @@
 % our $user=param 'user';
 % our $is_admin=param 'admin';
 % our $debug=param 'debug';
+% our $sitename="Placeholder Site Name"; # TODO: Change this!
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" ><![endif]-->
 <!--[if gt IE 8]><!--><html class="no-js" lang="en" ><!--<![endif]-->
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title>Foundation 4</title>  
+	<title><%== "$title | $component | $sitename" %></title>
 	<link rel="stylesheet" href="foundation/css/foundation<%= !$debug && '.min' %>.css">
 	<link rel="stylesheet" href="font-awesome/css/font-awesome<%= !$debug && '.min' %>.css">
 	<script src="foundation/js/vendor/custom.modernizr.js"></script>
@@ -85,22 +86,47 @@
 			</div>
 		</div>
 	</div>
-	<div id="login-modal" class="reveal-modal">
+	<div id="login-modal" class="reveal-modal small">
 		<h2>Log In</h2>
-		<form method="post" href="/login">
-			<label for="username" class="right inline">
-				Username
-			</label>
-			<input type="text" id="username" name="username" />
-			<label for="password" class="right inline">
-				Password
-			</label>
-			<input type="password" id="password" name="password" />
-			<input type="submit" id="submit" name="submit" />
+		<form method="post" action="/login">
+			<div class="row">
+				<div class="small-3 columns">
+					<div class="row">
+						<label for="username" class="right inline">
+							Username
+						</label>
+					</div>
+				</div>
+				<div class="small-9 columns">
+					<div class="row">
+						<input type="text" id="username" name="username" autofocus />
+					</div>
+				</div>
+			</div>
+			<div class="row">
+				<div class="small-3 columns">
+					<div class="row">
+						<label for="password" class="right inline">
+							Password
+						</label>
+					</div>
+				</div>
+				<div class="small-9 columns">
+					<div class="row">
+						<input type="password" id="password" name="password" />
+					</div>
+				</div>
+			</div>
+			<input type="submit" id="submit" name="submit" class="button right" value="Submit" />
 		</form>
 		<a class="close-reveal-modal">&#215;</a>
 	</div>
 	<script>
+		$('#login-modal').foundation('reveal', {
+			opened: function(){
+				$('#username').focus();
+			}
+		});
 		$(document).foundation();
 	</script>
 </body>
