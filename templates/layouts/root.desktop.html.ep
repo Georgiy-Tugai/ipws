@@ -1,17 +1,18 @@
 <!DOCTYPE html>
+% no strict;no warnings;
 % our $user=param 'user';
 % our $is_admin=param 'admin';
 % our $debug=param 'debug';
-% our $sitename="Placeholder Site Name"; # TODO: Change this!
+% our $leftpanel=$leftpanel // "Left panel!";
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" ><![endif]-->
 <!--[if gt IE 8]><!--><html class="no-js" lang="en" ><!--<![endif]-->
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title><%== "$title | $component | $sitename" %></title>
-	<link rel="stylesheet" href="foundation/css/foundation<%= !$debug && '.min' %>.css">
-	<link rel="stylesheet" href="font-awesome/css/font-awesome<%= !$debug && '.min' %>.css">
-	<script src="foundation/js/vendor/custom.modernizr.js"></script>
+	<title><%== "$title | $component" %></title>
+	<link rel="stylesheet" href="<%= url_static_db 'foundation/css/foundation.css' %>">
+	<link rel="stylesheet" href="<%= url_static_db 'font-awesome/css/font-awesome.css' %>">
+	<script src="<%= url_static 'foundation/js/vendor/custom.modernizr.js' %>"></script>
 	<style>
 		.row {
 			max-width: inherit;
@@ -61,7 +62,7 @@
 					% } else {
 						<li>
 							<a href="<%= url_for '/register' %>">
-								Create an Account
+								<%= l 'Create an Account' %>
 							</a>
 						</li>
 					% }
@@ -69,11 +70,11 @@
 					<li>
 						% if ($user) {
 							<a href="<%= url_for '/logout' %>">
-								Log Out
+								<%= l 'Log Out' %>
 							</a>
 						% } else {
-							<a href="#" data-reveal-id="login-modal">
-								Log In
+							<a data-reveal-id="login-modal">
+								<%= l 'Log In' %>
 							</a>
 						% }
 					</li>
@@ -144,11 +145,17 @@
 		<a class="close-reveal-modal"><i class="icon-close"></i></a>
 	</div>
 	<script>
-		document.write('<script src=foundation/js/vendor/' +
-			('__proto__' in {} ? 'zepto' : 'jquery') +
-			'<%= !$debug && '.min' %>.js><\/script>');
+		if ('Modernizr' in window) {
+			document.write('<script src=<%= url_static "foundation/js/vendor" %>/' +
+				('__proto__' in {} ? 'zepto' : 'jquery') +
+				'<%= !$debug && '.min' %>.js><\/script>');
+		}else{ // static files failed to load
+			var err=document.createElement('h1');
+			err.innerText='Static file(s) failed to load, check your config (static_base="<%= app->config('static_base') %>")!';
+			document.body.appendChild(err);
+		}
 	</script>
-	<script src="foundation/js/foundation<%= !$debug && '.min' %>.js"></script>
+	<script src="<%= url_static 'foundation/js/foundation.min.js'%>"></script>
 	<script>
 		$(document).foundation();
 		$('#login-modal').foundation('reveal', {
