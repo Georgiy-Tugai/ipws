@@ -68,7 +68,8 @@ sub startup {
   
   # I18N stage 1
   my $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || 'en') || $self->die_log(sprintf("Can't find a language file for %s, perhaps try 'en'?",$ENV{IPWS_LANG}));
-  $self->helper(l => sub {my $s=shift;$in->maketext(@_)});
+  $self->helper(i18n => sub {$in});
+  $self->helper(l => sub {my $s=shift;$s->i18n->maketext(@_)});
   
   my $_conf_gen_error;
   if (!-e $self->conf_file) { #XXX: Migrate (default) config into a seperate module!
@@ -120,8 +121,8 @@ sub startup {
   
   # I18N stage 2
   $in=IPWS::I18N->get_handle($ENV{IPWS_LANG} || $self->config('lang') || 'en') || $self->die_log($self->l("Can't find a language file for [_1], perhaps try 'en'?",$self->config('lang')));
-  delete $self->{renderer}->{helpers}->{l};
-  $self->helper(l => sub {my $s=shift;$in->maketext(@_)});
+  delete $self->{renderer}->{helpers}->{i18n};
+  $self->helper(i18n => sub {$in});
   
   # Config version check
   if (!$self->config('config_version') || $self->config('config_version') lt $cfg_ver) { #old config!
@@ -173,7 +174,7 @@ sub startup {
       name => 'on-change-password',
       value => 'delete-password-file'
     });
-    open(my $pwfil, '>:encoding(UTF-8)', $self->rel_file('root-password.txt')) or
+    open(my $pwfil, '>:encoding(UTF-8)', $self->home->rel_file('root-password.txt')) or
       $self->die_log(fs_fail($self->l("Can't save root password! ([_1])",$@),'root-password.txt'));
     print $pwfil "$pw\n";
     close $pwfil;
