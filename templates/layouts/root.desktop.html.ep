@@ -5,19 +5,24 @@
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" ><![endif]-->
 <!--[if gt IE 8]><!--><html class="no-js" lang="en" ><!--<![endif]-->
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <title>Foundation 4</title>  
-  <link rel="stylesheet" href="foundation/css/foundation<%= !$debug && '.min' %>.css">
-  <link rel="stylesheet" href="font-awesome/css/font-awesome<%= !$debug && '.min' %>.css">
-  <script src="foundation/js/vendor/custom.modernizr.js"></script>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width">
+	<title><%= $title %>: <%= $component %></title>  
+	<link rel="stylesheet" href="foundation/css/foundation<%= !$debug && '.min' %>.css">
+	<link rel="stylesheet" href="font-awesome/css/font-awesome<%= !$debug && '.min' %>.css">
+	<script src="foundation/js/vendor/custom.modernizr.js"></script>
+	<style>
+		.row {
+			max-width: inherit;
+		}
+	</style>
 </head>
 <body>
 	<div id="all">
 		<nav class="top-bar" id="navbar" data-options="scrolltop:false">
 			<ul class="title-area">
 				<li class="name"><h1><a><%= $title %></a></h1></li>
-				<li class="toggle-topbar menu-icon"><a href="#"><span><%= l 'Menu' %></span></a></li>
+				<li class="toggle-topbar menu-icon"><a style="cursor: inherit"><span><%= l 'Menu' %></span></a></li>
 			</ul>
 			<section class="top-bar-section">
 				<ul class="left">
@@ -31,12 +36,13 @@
 						% if ($is_admin) {
 						<li><a href="<%= url_for '/admin' %>"><%= l 'Global settings' %></a></li>
 						% }
-						<li><a href="<%= url_for '/profile' %>"><%= $user %></a></li>
+						<li class="divider"></li>
+						<li><a href="<%= url_for '/profile' %>"><%= l('User:').$user %> <i class="icon-cog"></i></a></li>
 					% } else {
-						<li><a href="<%= url_for '/register' %>">Create an account</a></li>
+						<li><a href="<%= url_for '/register' %>"><%= l 'Create an account' %></a></li>
+						<li class="divider"></li>
 					% }
-					<li class="divider"></li>
-					<li><a href="<%= url_for $user ? '/logout' : '/login' %>"><%= ($user ? l 'Logout' : l 'Login') %></a></li>
+					<li><a class="button" href="<%= url_for $user ? '/logout' : '/login' %>"><%= ($user ? l 'Logout' : l 'Login') %> <i class="icon-off"></i></a></li>
 				</ul>
 			</section>
 		</nav>
