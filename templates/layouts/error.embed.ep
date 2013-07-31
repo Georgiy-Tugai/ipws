@@ -3,7 +3,7 @@
 <div style="font-size: 200%;" class="error">
 	<%== $error %>!
 </div>
-<div class="error>
+<div class="error">
 	<%= my $messages = {
 		"200" => "Everything's OK!  Not sure why you're seeing this error message though...",
 		"400" => "Your request is broken...",
@@ -53,6 +53,6 @@
 	if(defined($messages{"$error"}){
 		print $messages{"$error"};
 	} else {
-		print "Error: This error countains an error.";
+		print "Error: This error contains an error.";
 	} %>
 </div>
