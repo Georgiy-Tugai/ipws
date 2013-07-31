@@ -117,7 +117,22 @@
 					</div>
 				</div>
 			</div>
-			<input type="submit" id="submit" name="submit" class="button right" value="Submit" />
+			<div class="row">
+				<div class="small-3 columns"></div>
+				<div class="small-9 columns">
+					<small>
+						<a href="/forgot">
+							Forgotten your password?
+						</a>
+						<br />
+						<a href="/register">
+							Don't have an account?
+						</a>
+					</small>
+				</div>
+			</div>
+			<div class="row"></div>
+			<input type="submit" id="submit" name="submit" class="button right" value="Submit" /><br />
 		</form>
 		<a class="close-reveal-modal">&#215;</a>
 	</div>
