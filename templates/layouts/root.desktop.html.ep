@@ -11,20 +11,20 @@
 	<title><%== "$title | $component | $sitename" %></title>
 	<link rel="stylesheet" href="foundation/css/foundation<%= !$debug && '.min' %>.css">
 	<link rel="stylesheet" href="font-awesome/css/font-awesome<%= !$debug && '.min' %>.css">
-	<script src="foundation/js/vendor/custom.modernizr.js"></script>
 	<script>
 		document.write('<script src=foundation/js/vendor/' +
-		('__proto__' in {} ? 'zepto' : 'jquery') +
-		'<%= !$debug && '.min' %>.js><\/script>');
+			('__proto__' in {} ? 'zepto' : 'jquery') +
+			'<%= !$debug && '.min' %>.js><\/script>');
 	</script>
-	<script src="foundation/js/foundation<%= !$debug && '.min' %>.js"></script>
+	<script src="foundation/js/vendor/custom.modernizr.js"></script>
+	<script src="foundation/js/foundation<%= !$debug && '.min' %>.js"></script> 
 </head>
 <body>
 	<div id="all">
 		<nav class="top-bar" id="navbar" data-options="scrolltop:false">
 			<ul class="title-area">
 				<li class="name"><h1><a><%= $title %></a></h1></li>
-				<li class="toggle-topbar menu-icon"><a href="#"><span><%= l 'Menu' %></span></a></li>
+				<li class="toggle-topbar menu-icon"><a style="cursor: inherit"><span><%= l 'Menu' %></span></a></li>
 			</ul>
 			<section class="top-bar-section">
 				<ul class="left">
@@ -60,8 +60,8 @@
 					% }
 					<li class="divider"></li>
 					<li>
-						% if (url_for $user) {
-							<a href="/logout">
+						% if ($user) {
+							<a href="<%= url_for '/logout' %>">
 								Log Out
 							</a>
 						% } else {
@@ -87,7 +87,7 @@
 		</div>
 	</div>
 	<div id="login-modal" class="reveal-modal small">
-		<h2>Log In</h2>
+		<h3>Log In</h3>
 		<form method="post" action="/login">
 			<div class="row">
 				<div class="small-3 columns">
@@ -99,7 +99,7 @@
 				</div>
 				<div class="small-9 columns">
 					<div class="row">
-						<input type="text" id="username" name="username" autofocus />
+						<input type="text" id="username" name="username" />
 					</div>
 				</div>
 			</div>
