@@ -142,7 +142,7 @@
 			<div class="row"></div>
 			<input type="submit" id="submit" name="submit" class="button right" value="Submit" /><br />
 		</form>
-		<a class="close-reveal-modal"><i class="icon-close"></i></a>
+		<a class="close-reveal-modal"><i class="icon-remove"></i></a>
 	</div>
 	<script>
 		if ('Modernizr' in window) {
