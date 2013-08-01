@@ -7,7 +7,7 @@
 	<%= my $messages = {
 		"200" => "Everything's OK!  Not sure why you're seeing this error message though...",
 		"400" => "Your request is broken...",
-		"401" => "Requrest unauthorised: You do not have permission to go here.  Try logging in <a href=\"login\">here</a>.",
+		"401" => sub {"Request unauthorised: You do not have permission to go here.  Try logging in <a href=\"".(url_for '/login')."\">here</a>."},
 		"403" => "Request forbidden: You shall not pass!",
 		"404" => "The page you were looking for seems to have evaporated into space. SPAAACE!",
 		"405" => "Method not allowed.  Try a different method, I suppose?",
@@ -24,7 +24,7 @@
 		"416" => "I'm afraid I can't give you that, it doesn't seen to be here.",
 		"417" => "I can't meet your expectations.  Sorry.",
 		"418" => "I cannot make coffee, I'm a teapot.  Fairly short and stout, too.",
-		"419" => "You've timed out!  You're going to have to log in again, <a href=\"login\">here</a>.",
+		"419" => "You've timed out!  You're going to have to log in again, <a href=\"".(url_for '/login')."\">here</a>.",
 		"420" => "Zen quote #3.141592e42: <blockquote>Calm yourself and HTTP requests will succeed</blockquote>.",
 		"422" => "Your entity is unprocessable (Even after we upgraded from that 8Mhz processor).",
 		"423" => "Jail error: The resource is locked.",
@@ -50,8 +50,8 @@
 		"510" => "Contracted.",
 		"511" => "Can you tell if this network is real or fake?  Please authenticate it.",
 		};
-	if(defined($messages{"$error"}){
-		print $messages{"$error"};
+	if(defined($messages{$error}){
+		print ref $messages{$error} ? $messages{$error}->() : $messages{$error};
 	} else {
 		print "Error: This error contains an error.";
 	} %>
