@@ -20,6 +20,9 @@
 		.top-bar-section ul {
 			background-color: #111;
 		}
+		.reveal-modal-bg {
+			top: 45px;
+		}
 	</style>
 </head>
 <body>
@@ -82,65 +85,64 @@
 			</section>
 		</nav>
 		<div id="page" class="row">
-			<div class="leftpanel large-6 columns" id="col1">
-				<div class="pcontent panel">
-					<%== $leftpanel %>
-				</div>
-			</div>
-			<div class="rightpanel large-6 columns" id="col2">
-				<div class="pcontent panel">
-					<%== $rightpanel %>
-				</div>
-			</div>
+			<%== content %>
 		</div>
 	</div>
-	<div id="login-modal" class="reveal-modal small">
+	<div id="login-modal" class="reveal-modal medium">
 		<h3>Log In</h3>
 		<form method="post" action="/login">
 			<div class="row">
-				<div class="small-3 columns">
+				<div class="small-12 large-6 columns">
 					<div class="row">
-						<label for="username" class="right inline">
-							Username
+						<label>
+							<%= l 'Username' %>
 						</label>
+						<input data-focus type="text" autocomplete="off" name="username" />
 					</div>
 				</div>
-				<div class="small-9 columns">
+				<div class="small-12 large-6 columns">
 					<div class="row">
-						<input type="text" id="username" name="username" />
-					</div>
-				</div>
-			</div>
-			<div class="row">
-				<div class="small-3 columns">
-					<div class="row">
-						<label for="password" class="right inline">
-							Password
+						<label>
+							<%= l 'Password' %>
 						</label>
+						<div class="row collapse">
+							<div class="small-12 large-8 columns">
+								<input type="password" name="password" />
+							</div>
+							<div class="show-for-small small-2 columns"></div>
+							<div class="small-10 large-4 columns">
+								% foreach ('button postfix right show-for-small','button postfix hide-for-small') {
+								<a class="<%= $_ %>" href="/forgot" style="max-width: 10em;">
+									<%= l 'Forgot?' %>
+								</a>
+								% }
+							</div>
+						</div>
 					</div>
 				</div>
-				<div class="small-9 columns">
+				<div class="small-12 large-9 push-3 columns left">
 					<div class="row">
-						<input type="password" id="password" name="password" />
+						<div class="large-6 small-12 columns">
+						</div><div class="large-6 small-12 columns">
+						</div>
 					</div>
 				</div>
-			</div>
-			<div class="row">
-				<div class="small-3 columns"></div>
-				<div class="small-9 columns">
-					<small>
-						<a href="/forgot">
-							Forgotten your password?
-						</a>
-						<br />
-						<a href="/register">
-							Don't have an account?
-						</a>
-					</small>
+				<div class="small-12 large-9 columns push-3 left">
+					<div class="row">
+						<div class="row collapse">
+							<div class="small-6 columns">
+								<input type="submit" name="submit" class="success button expand right" value="Login" />
+							</div>
+							<div class="small-6 columns">
+								<a class="button expand" href="/register">
+									<%= l 'Register' %>
+								</a>
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 			<div class="row"></div>
-			<input type="submit" id="submit" name="submit" class="button right" value="Submit" /><br />
 		</form>
 		<a class="close-reveal-modal"><i class="icon-remove"></i></a>
 	</div>
@@ -158,9 +160,13 @@
 	<script src="<%= url_static 'foundation/js/foundation.min.js'%>"></script>
 	<script>
 		$(document).foundation();
-		$('#login-modal').foundation('reveal', {
+		$('.reveal-modal').foundation('reveal', {
 			opened: function(){
-				$('#username').focus();
+				var off=$(this).offset();
+				if (off.top+off.height > window.innerHeight) {
+					$(this).offset({top: (window.innerHeight - off.height)/2});
+				}
+				$(this).find('input[data-focus]')[0].focus();
 			}
 		});
 	</script>
