@@ -23,7 +23,25 @@
 		.reveal-modal-bg {
 			top: 45px;
 		}
+		@media only screen and (max-height: 22em) {
+			.reveal-modal.open {
+				top: 0px !important;
+			}
+		}
+		@media only screen and (max-height: 15em) {
+			.reveal-modal.open {
+				top: -5em !important;
+			}
+		}
+		.reveal-modal form {
+			margin-bottom: 0px;
+		}
+		.reveal-modal .row.last .button {
+			margin-bottom: 0px;
+		}
+		%= content_for 'style'
 	</style>
+	%= content_for 'head'
 </head>
 <body>
 	<div id="all">
@@ -84,7 +102,7 @@
 				</ul>
 			</section>
 		</nav>
-		<div id="page" class="row">
+		<div id="page">
 			<%== content %>
 		</div>
 	</div>
@@ -128,7 +146,7 @@
 					</div>
 				</div>
 				<div class="small-12 large-9 columns push-3 left">
-					<div class="row">
+					<div class="last row">
 						<div class="row collapse">
 							<div class="small-6 columns">
 								<input type="submit" name="submit" class="success button expand right" value="Login" />
@@ -142,7 +160,6 @@
 					</div>
 				</div>
 			</div>
-			<div class="row"></div>
 		</form>
 		<a class="close-reveal-modal"><i class="icon-remove"></i></a>
 	</div>
@@ -162,10 +179,10 @@
 		$(document).foundation();
 		$('.reveal-modal').foundation('reveal', {
 			opened: function(){
-				var off=$(this).offset();
-				if (off.top+off.height > window.innerHeight) {
-					$(this).offset({top: (window.innerHeight - off.height)/2});
-				}
+				//var off=$(this).offset();
+				//if (off.top+off.height > window.innerHeight) {
+					//$(this).offset({top: (window.innerHeight - off.height)/2});
+				//}
 				$(this).find('input[data-focus]')[0].focus();
 			}
 		});
