@@ -39,6 +39,19 @@
 		.reveal-modal .row.last .button {
 			margin-bottom: 0px;
 		}
+		.top-bar a:hover:not(.inactive) {
+			background-color: #555;
+		}
+		.top-bar .top-bar-section a:hover:not(.inactive) {
+			background-color: #555;
+		}
+		a.inactive {
+			cursor: default;
+		}
+		.no-js .no-js-open {
+			display: block !important;
+			visibility: visible; 
+		}
 		%= content_for 'style'
 	</style>
 	%= content_for 'head'
@@ -47,8 +60,8 @@
 	<div id="all">
 		<nav class="top-bar" id="navbar" data-options="scrolltop:false">
 			<ul class="title-area">
-				<li class="name" style="background-color: #090909"><h1><a><%= $title %></a></h1></li>
-				<li class="toggle-topbar menu-icon"><a style="cursor: inherit"><span><%= l 'Menu' %></span></a></li>
+				<li class="name" style="background-color: #090909"><h1><a class="inactive"><%= $title %></a></h1></li>
+				<li class="toggle-topbar menu-icon"><a><span><%= l 'Menu' %></span></a></li>
 			</ul>
 			<section class="top-bar-section">
 				<ul class="left">
@@ -115,7 +128,7 @@
 						<label>
 							<%= l 'Username' %>
 						</label>
-						<input data-focus type="text" autocomplete="off" name="username" />
+						<input data-focus type="text" autocomplete="off" name="username" tabindex="1" />
 					</div>
 				</div>
 				<div class="small-12 large-6 columns">
@@ -125,12 +138,12 @@
 						</label>
 						<div class="row collapse">
 							<div class="small-12 large-8 columns">
-								<input type="password" name="password" />
+								<input type="password" name="password" tabindex="2" />
 							</div>
 							<div class="show-for-small small-2 columns"></div>
 							<div class="small-10 large-4 columns">
 								% foreach ('button postfix right show-for-small','button postfix hide-for-small') {
-								<a class="<%= $_ %>" href="/forgot" style="max-width: 10em;">
+								<a class="<%= $_ %>" href="/forgot" style="max-width: 10em;" tabindex="5">
 									<%= l 'Forgot?' %>
 								</a>
 								% }
@@ -149,10 +162,10 @@
 					<div class="last row">
 						<div class="row collapse">
 							<div class="small-6 columns">
-								<input type="submit" name="submit" class="success button expand right" value="Login" />
+								<input type="submit" name="submit" class="success button expand right" tabindex="3" value="Login" />
 							</div>
 							<div class="small-6 columns">
-								<a class="button expand" href="/register">
+								<a class="button expand" href="/register" tabindex="4">
 									<%= l 'Register' %>
 								</a>
 							</div>
@@ -161,7 +174,10 @@
 				</div>
 			</div>
 		</form>
-		<a class="close-reveal-modal"><i class="icon-remove"></i></a>
+		<a class="close-reveal-modal" tabindex="0"><i class="icon-remove"></i></a>
+	</div>
+	<div class="reveal-modal small no-js-open">
+		<h1>This website works best with JavaScript enabled.</h1>
 	</div>
 	<script>
 		if ('Modernizr' in window) {
@@ -170,7 +186,7 @@
 				'<%= !$debug && '.min' %>.js><\/script>');
 		}else{ // static files failed to load
 			var err=document.createElement('h1');
-			err.innerText='Static file(s) failed to load, check your config (static_base="<%= app->config('static_base') %>")!';
+			err.innerText='<%= l 'Static file(s) failed to load, check your config (static_base=[_1])!', app->config('static_base') %>';
 			document.body.appendChild(err);
 		}
 	</script>

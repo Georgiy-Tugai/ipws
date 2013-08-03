@@ -188,7 +188,7 @@ sub startup {
   
   # Static files
   $self->helper(url_static => sub {
-    my ($self,$url)=@_;
+    my ($c,$url)=@_;
     my $u=Mojo::URL->new($self->config('static_base'));
     push @{$u->path->parts}, @{Mojo::URL->new($url)->path->parts};
     return $u;
@@ -198,6 +198,13 @@ sub startup {
     my ($c,$url)=@_;
     $url=~/^(.*)(\.[^.]+)$/;
     $c->app->url_static($1.($c->param('debug') ? '' : '.min').$2);
+  });
+  
+  # Other helpers
+  
+  $self->helper(lorem => sub {
+    my ($c,$rept)=@_;
+    return "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." x ($rept // 1);
   });
   
   # Router
@@ -222,6 +229,10 @@ sub startup {
       $self->warn_log($_);
     }
   }
+  
+  $r->any('/template/:name' => sub {
+    $_[0]->render($_[0]->stash('name'));
+  });
   
   $r->route('/')->to(cb => sub {
     $_[0]->render('test', component => $_[0]->param('comp') || 'Admin', leftpanel => $_[0]->url_static('foundation'));

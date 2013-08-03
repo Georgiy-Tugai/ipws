@@ -1,0 +1,44 @@
+% layout 'root.desktop';
+% content_for head => begin
+% end
+% content_for style => begin
+	.pane.outline {
+		border: 1px solid black;
+		background: #aaa;
+	}
+	.pane-container {
+		width: 100%;
+		height: 100%;
+		overflow-x: hidden;
+	}
+	.panes {
+		width: 200%;
+		height: 100%;
+	}
+	.pane {
+		height: 100%;
+		float: left;
+		max-width: 40%;
+	}
+	@media only screen and (max-width: 58.75em) {
+		.pane {
+			float: none;
+			max-width: 50% !important;
+		}
+	}
+	% if (param 'debug') {
+		.panes .panes {
+			background: red !important;
+		}
+	% }
+% end
+<div class="pane-container">
+	<div class="panes">
+		<div class="pane outline">
+			<%= lorem %>
+		</div>
+		<div class="pane outline">
+			<%= lorem %>
+		</div>
+	</div>
+</div>
