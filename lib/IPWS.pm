@@ -39,11 +39,13 @@ our %cfg_defaults=(
     'wiki' => {
       'type' => 'Wiki',
       'name' => 'IPWS Wiki',
+      'shortname' => 'Wiki',
       'path' => '/wiki'
     },
     'blog' => {
       'type' => 'Blog',
       'name' => 'IPWS Blog',
+      'shortname' => 'Blog',
       'path' => '/blog'
     }
   },
@@ -212,7 +214,7 @@ sub startup {
   
   my $r=$_r;
   if ($self->config('base') ne '/') {
-    $r=$_r->bridge($self->config('base'))->to(title => $self->config('title'));
+    $r=$_r->bridge($self->config('base'));
   }
 
   $self->helper(baseroutes => sub {$r});

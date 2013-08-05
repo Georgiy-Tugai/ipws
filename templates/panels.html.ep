@@ -1,8 +1,8 @@
-% layout 'root.desktop';
+% layout 'root.desktop', component => param 'comp';
 % content_for head => begin
 % end
 % content_for style => begin
-	.pane.outline {
+	.outline {
 		border: 1px solid black;
 		background: #aaa;
 	}
@@ -11,20 +11,36 @@
 		height: 100%;
 		overflow-x: hidden;
 	}
+	#page {
+		position: fixed;
+		height: 100%;
+		top: 45px;
+		z-index: -1;
+	}
 	.panes {
-		width: 200%;
 		height: 100%;
 	}
 	.pane {
 		height: 100%;
 		float: left;
-		max-width: 40%;
+		overflow-y: auto;
+	}
+	.pane .nav {
+		height: 30px;
+		background-color: grey;
+		vertical-align: center;
 	}
 	@media only screen and (max-width: 58.75em) {
 		.pane {
-			float: none;
-			max-width: 50% !important;
+			display: none;
 		}
+		.pane.active {
+			display: block;
+			width: 100% !important;
+		}
+	}
+	.nav .button {
+		height: 100%;
 	}
 	% if (param 'debug') {
 		.panes .panes {
@@ -32,13 +48,33 @@
 		}
 	% }
 % end
-<div class="pane-container">
-	<div class="panes">
-		<div class="pane outline">
-			<%= lorem %>
+% content_for script => begin
+//(function($){
+	function newPanel() {
+		var panel=$('<div class="pane outline">');
+		$('.nav:first').clone().appendTo(panel);
+		panel.appendTo($('.panes'));
+		refresh();
+	};
+	function refresh() {
+		var objs=$('.panes').children('.pane');
+		var percent=100/objs.length;
+		objs.css('width', percent+'%');
+	};
+	refresh();
+	$('.panes').on("click",function(){
+		if($('.top-bar, [data-topbar]').hasClass('expanded')) {
+			$('.top-bar, [data-topbar]').css('height', '').removeClass('expanded');
+		}
+	});
+//})($);
+% end
+<div class="panes">
+	<div class="pane active outline">
+		<div class="nav">
+			<button class="button tiny">Back</button>
+			<button onclick="newPanel()" class="button tiny right"><i class="icon-plus-sign"></i></button>
 		</div>
-		<div class="pane outline">
-			<%= lorem %>
-		</div>
+		<%= lorem %>
 	</div>
 </div>

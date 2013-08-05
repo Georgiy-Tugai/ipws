@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 % no strict;no warnings;
-% our $user=param 'user';
-% our $is_admin=param 'admin';
-% our $debug=param 'debug';
-% our $leftpanel=$leftpanel // "Left panel!";
+% my $user=param 'user';
+% my $is_admin=param 'admin';
+% my $debug=param 'debug';
+% my $component=$component // "Core";
+% my $title=$title // app->config('title');
+% my $components=$components || {map {$$_{shortname} || $$_{name} || '???',$$_{path}} values %{app->config('svcs')}};
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" ><![endif]-->
 <!--[if gt IE 8]><!--><html class="no-js" lang="en" ><!--<![endif]-->
 <head>
@@ -45,12 +47,34 @@
 		.top-bar .top-bar-section a:hover:not(.inactive) {
 			background-color: #555;
 		}
+		.top-bar .menu-icon a:hover {
+			background-color: inherit !important;
+		}
 		a.inactive {
 			cursor: default;
 		}
 		.no-js .no-js-open {
 			display: block !important;
 			visibility: visible; 
+		}
+		i.huge {
+			font-size: 200%;
+			line-height: 45%;
+		}
+		i.huge.i-left {
+			margin-right: 0.2em;
+		}
+		i.huge.i-right {
+			margin-left: 0.2em;
+		}
+		i.i-left {
+			margin-right: 0.4em;
+		}
+		i.i-right {
+			margin-left: 0.4em;
+		}
+		.has-dropdown i.huge {
+			margin-right: -0.2em;
 		}
 		%= content_for 'style'
 	</style>
@@ -60,7 +84,7 @@
 	<div id="all">
 		<nav class="top-bar" id="navbar" data-options="scrolltop:false">
 			<ul class="title-area">
-				<li class="name" style="background-color: #090909"><h1><a class="inactive"><%= $title %></a></h1></li>
+				<li class="name" style="background-color: #090909"><h1><a href="<%= url_for '/' %>"><%= $title %></a></h1></li>
 				<li class="toggle-topbar menu-icon"><a><span><%= l 'Menu' %></span></a></li>
 			</ul>
 			<section class="top-bar-section">
@@ -72,7 +96,7 @@
 								</a>
 							</li>
 						% end
-						%= $navItem->($component);
+						%= $navItem->($component) if $component;
 					<li class="divider"></li>
 						% foreach (sort keys %$components) {
 							%= $navItem->($_) unless $_ eq $component;
@@ -81,22 +105,23 @@
 				</ul>
 				<ul class="right">
 					% if ($user) {
+						<li<%== $is_admin && ' class="has-dropdown"' %>>
+							<a href="<%= url_for '/settings'%>">
+								<%= l 'Settings' %><i class="icon-gear huge i-right"></i>
+							</a>
 						% if ($is_admin) {
-							<li>
-								<a href="<%= url_for '/admin' %>">
-									<%= l 'Global settings' %>
-								</a>
-							</li>
+							<ul class="dropdown">
+								<li>
+									<a href="<%= url_for '/admin' %>">
+										<%= l 'Global settings' %><i class="icon-wrench i-right"></i>
+									</a>
+								</li>
+							</ul>
 						% }
+						</li>
 						<li>
 							<a href="<%= url_for '/profile' %>">
-								<%= $user %>
-							</a>
-						</li>
-					% } else {
-						<li>
-							<a href="<%= url_for '/register' %>">
-								<%= l 'Create an Account' %>
+								<i class="icon-user huge i-left"></i><%= $user %>
 							</a>
 						</li>
 					% }
@@ -104,11 +129,11 @@
 					<li>
 						% if ($user) {
 							<a href="<%= url_for '/logout' %>">
-								<%= l 'Log Out' %>
+								<%= l 'Log out' %><i class="icon-signout huge i-right"></i>
 							</a>
 						% } else {
 							<a data-reveal-id="login-modal">
-								<%= l 'Log In' %>
+								<i class="icon-key huge i-left"></i><%= l 'Log in/Register' %>
 							</a>
 						% }
 					</li>
@@ -177,20 +202,20 @@
 		<a class="close-reveal-modal" tabindex="0"><i class="icon-remove"></i></a>
 	</div>
 	<div class="reveal-modal small no-js-open">
-		<h1>This website works best with JavaScript enabled.</h1>
+		<h1><%= l 'This website works best with JavaScript enabled.' %></h1>
 	</div>
 	<script>
 		if ('Modernizr' in window) {
 			document.write('<script src=<%= url_static "foundation/js/vendor" %>/' +
 				('__proto__' in {} ? 'zepto' : 'jquery') +
-				'<%= !$debug && '.min' %>.js><\/script>');
+				'<%= !$debug && ".min" %>.js><\/script>');
 		}else{ // static files failed to load
 			var err=document.createElement('h1');
-			err.innerText='<%= l 'Static file(s) failed to load, check your config (static_base=[_1])!', app->config('static_base') %>';
+			err.innerText='<%= l "Static file(s) failed to load, check your config (static_base=[_1])!", app->config("static_base") %>';
 			document.body.appendChild(err);
 		}
 	</script>
-	<script src="<%= url_static 'foundation/js/foundation.min.js'%>"></script>
+	<script src="<%= url_static "foundation/js/foundation.min.js"%>"></script>
 	<script>
 		$(document).foundation();
 		$('.reveal-modal').foundation('reveal', {
@@ -202,6 +227,7 @@
 				$(this).find('input[data-focus]')[0].focus();
 			}
 		});
+		%= content_for 'script'
 	</script>
 </body>
 </html>

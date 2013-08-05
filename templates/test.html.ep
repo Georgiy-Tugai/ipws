@@ -1,2 +1,2 @@
-% layout 'root.desktop', components => {'Wiki' => '/wiki','Blog' => '/blog'};
+% layout 'root.desktop', component => 'Test!';
 content
