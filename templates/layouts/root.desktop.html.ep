@@ -59,7 +59,7 @@
 		}
 		i.huge {
 			font-size: 200%;
-			line-height: 45%;
+			vertical-align: -22%;
 		}
 		i.huge.i-left {
 			margin-right: 0.2em;
@@ -141,6 +141,11 @@
 			</section>
 		</nav>
 		<div id="page">
+			<noscript>
+				<a class="large button alert expand" target="_blank" style="margin-bottom: 0px" href="http://enable-javascript.com/">
+					<%= l 'This website works best with JavaScript enabled' %><span class="show-for-small"><%= l ', and JavaScript is required on mobile devices.' %></span>
+				</a>
+			</noscript>
 			<%== content %>
 		</div>
 	</div>
@@ -200,9 +205,6 @@
 			</div>
 		</form>
 		<a class="close-reveal-modal" tabindex="0"><i class="icon-remove"></i></a>
-	</div>
-	<div class="reveal-modal small no-js-open">
-		<h1><%= l 'This website works best with JavaScript enabled.' %></h1>
 	</div>
 	<script>
 		if ('Modernizr' in window) {

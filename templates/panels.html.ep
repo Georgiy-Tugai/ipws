@@ -28,7 +28,7 @@
 	.pane .nav {
 		height: 30px;
 		background-color: grey;
-		vertical-align: center;
+		vertical-align: middle;
 	}
 	@media only screen and (max-width: 58.75em) {
 		.pane {
