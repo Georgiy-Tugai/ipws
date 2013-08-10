@@ -1,5 +1,5 @@
-package IPWS::Wiki;
-use Mojo::Base 'Mojo';
+package IPWS::Service::Wiki;
+use Mojo::Base 'IPWS::Service';
 use curry;
 use Data::Dumper;
 push @IPWS::svcs, 'Wiki';

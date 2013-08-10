@@ -24,6 +24,19 @@ __PACKAGE__->meta->setup(
 			type => 'one to many',
 			class => 'IPWS::Group::Perm',
 			key_columns => {id => 'groupid'}
+		},
+		prefs => {
+			type => 'one to many',
+			class => 'IPWS::Group::Pref',
+			key_columns => {id => 'groupid'}
 		}
 	]
 );
+
+package IPWS::Group::Manager;
+use Mojo::Base 'IPWS::DB::Object::Manager';
+
+sub object_class { 'IPWS::Group' }
+ 
+__PACKAGE__->make_manager_methods('groups');
+1;

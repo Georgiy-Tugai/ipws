@@ -13,6 +13,7 @@ Dependencies
 - Math::Round
 - Text::Password::Pronounceable
 - Try::Tiny
+- Module::Find
 
 Planned Feature list
 --------------------

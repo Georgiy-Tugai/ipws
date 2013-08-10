@@ -1,4 +1,4 @@
-package IPWS::Blog;
+package IPWS::Service::Blog;
 use Mojo::Base 'IPWS::Service';
 use Data::Dumper;
 use feature 'switch';

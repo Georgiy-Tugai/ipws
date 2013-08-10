@@ -10,9 +10,8 @@ use File::Path qw(make_path);
 use File::Spec::Functions qw(rel2abs abs2rel file_name_is_absolute catfile);
 use Storable qw(lock_nstore lock_retrieve);
 use Crypt::Digest qw(digest_data digest_data_hex digest_data_b64);
+use IPWS::Service;
 
-use IPWS::Wiki;
-use IPWS::Blog;
 our $VERSION='0.1';
 our @svcs;
 our @res_path=qw(/ /admin);
@@ -177,7 +176,6 @@ sub startup {
     $adm_user->force_change_pw(1);
     $adm_user->locale($self->i18n->language_tag);
     $adm_user->add_prefs({
-      service => 'admin',
       name => 'on-change-password',
       value => 'delete-password-file'
     });
@@ -188,6 +186,12 @@ sub startup {
     $adm_user->save;
     $self->warn_log($self->l("The password for your new 'root' account is in '[_1]'",$self->app->home->rel_file('root-password.txt')));
     $ENV{HARNESS_ACTIVE}=1; # Don't spew help
+  }else{
+    unless ($adm_user->can_do(undef,"login")) {
+      $adm_user->add_perms([
+        {name => 'login'}
+      ]);
+    }
   }
   
   # Static files
@@ -297,11 +301,11 @@ sub load_svc {
   if ($safe{$type}) { # Actually load the service
     try {
       $self->log->debug("Loading service $id...");
-      $self->ipws()->{svcs}->{$id}="IPWS::$type"->new();
+      $self->ipws()->{svcs}->{$id}="IPWS::Service::$type"->new();
       $self->log->debug("Routing service $id...");
       my $r2=$self->baseroutes->under($$cfg{path});#->detour($svcs->{$id},{base => $id,id => $cfg->{'id'}});
       $self->log->debug("Starting service $id...");
-      $self->ipws()->{svcs}->{$id}->startup($r2,$cfg) if "IPWS::$type"->can('startup');
+      $self->ipws()->{svcs}->{$id}->startup($r2,$cfg);
       $self->log->debug("Service $id ready.");
     } catch {
       die $self->config('debug') ? "Error while loading service '$id': $_" : "Internal error while loading service!\n";

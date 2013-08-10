@@ -23,12 +23,7 @@ ctime datetime DEFAULT current_timestamp,
 libver varchar(64) NOT NULL,
 hash varchar(64) NOT NULL
 );
-CREATE TABLE IF NOT EXISTS groups
-(
-id INTEGER PRIMARY KEY ASC,
-name varchar(255) NOT NULL UNIQUE,
-parentid int
-);
+
 CREATE TABLE IF NOT EXISTS user_groups
 (
 userid int NOT NULL,
@@ -40,6 +35,7 @@ CREATE TABLE IF NOT EXISTS user_prefs
 (
 userid int NOT NULL,
 service varchar(255),
+service_type varchar(255),
 name varchar(255) NOT NULL,
 value varchar(255) NOT NULL,
 FOREIGN KEY(userid) REFERENCES users(id)
@@ -48,6 +44,7 @@ CREATE TABLE IF NOT EXISTS user_perms
 (
 userid int NOT NULL,
 service varchar(255),
+service_type varchar(255),
 name varchar(255) NOT NULL,
 value boolean DEFAULT 1,
 FOREIGN KEY(userid) REFERENCES users(id)
@@ -78,15 +75,30 @@ objectid int,
 objecttype varchar(255), -- XXX: Is this the right way to go about it?
 FOREIGN KEY(userid) REFERENCES users(id)
 );
+CREATE TABLE IF NOT EXISTS groups
+(
+id INTEGER PRIMARY KEY ASC,
+name varchar(255) NOT NULL UNIQUE,
+parentid int
+);
 CREATE TABLE IF NOT EXISTS group_perms
 (
 groupid int,
 service varchar(255),
+service_type varchar(255),
 name varchar(255) NOT NULL,
 value boolean DEFAULT 1,
 FOREIGN KEY(groupid) REFERENCES groups(id)
 );
-
+CREATE TABLE IF NOT EXISTS group_prefs
+(
+groupid int NOT NULL,
+service varchar(255),
+service_type varchar(255),
+name varchar(255) NOT NULL,
+value varchar(255) NOT NULL,
+FOREIGN KEY(groupid) REFERENCES groups(id)
+);
 CREATE TABLE IF NOT EXISTS user_bans
 (
 id INTEGER PRIMARY KEY ASC,
