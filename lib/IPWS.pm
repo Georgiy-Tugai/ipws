@@ -1,13 +1,15 @@
 package IPWS;
 use Locale::Maketext;
 use IPWS::I18N;
-use DBIx::MultiStatementDo;
+use SQL::SplitStatement;
 use YAML::Tiny qw(Dump LoadFile);
 use Mojo::Base 'Mojolicious';
 use IPWS::DB;
 use Try::Tiny;
 use File::Path qw(make_path);
 use File::Spec::Functions qw(rel2abs abs2rel file_name_is_absolute catfile);
+use Storable qw(lock_nstore lock_retrieve);
+use Crypt::Digest qw(digest_data digest_data_hex digest_data_b64);
 
 use IPWS::Wiki;
 use IPWS::Blog;
@@ -415,6 +417,7 @@ sub init_database {
 
 sub run_sql {
   my ($self,$name)=@_;
+  state $sql_cache=-e $self->home->rel_file('sql-split-cache.db') ? lock_retrieve($self->home->rel_file('sql-split-cache.db')) : {};
   my $f;
   try {
     $f=$name.'.'.lc($self->db->{Driver}->{Name}).'.sql';
@@ -442,10 +445,23 @@ sub run_sql {
       chomp $rethrow;
     };
     my $dbh=$self->db;
-    $msh=DBIx::MultiStatementDo->new(dbh => $dbh);
-    $msh->do($slurp);
+    #$msh=DBIx::MultiStatementDo->new(dbh => $dbh);
+    #$msh->do($slurp);
+    my $fdig=digest_data('SHA256',$slurp);
+    if (exists $sql_cache->{$f} && $fdig eq $sql_cache->{$f}->{digest}) {
+      $dbh->do($_) foreach @{$sql_cache->{$f}->{cache}};
+    }else{
+      my $obj=SQL::SplitStatement->new();
+      my @split=$obj->split($slurp);
+      $dbh->do($_) foreach @split;
+      $sql_cache->{$f}={
+        cache => \@split,
+        digest => $fdig
+      };
+      lock_nstore($sql_cache,$self->home->rel_file('sql-split-cache.db'));
+    }
   };
-  $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$msh->dbh->errstr || $rethrow || $@)) if $rethrow || $@;
+  $self->die_log($self->l("Error while executing [_1]: '[_2]'",$f,$self->db->errstr || $rethrow || $@)) if $rethrow || $@;
   # End horrible kludge
 }
 
