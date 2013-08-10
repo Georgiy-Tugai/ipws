@@ -33,6 +33,16 @@ __PACKAGE__->meta->setup(
 	]
 );
 
+sub recurse_group {
+	my ($self,$cb)=@_;
+	my $ret;
+	for ($self) {$ret=$cb->($self);};
+	return $ret if defined $ret;
+	my $parent=$self->parent();
+	return $parent->recurse_group($cb) if $parent;
+	return undef;
+}
+
 package IPWS::Group::Manager;
 use Mojo::Base 'IPWS::DB::Object::Manager';
 

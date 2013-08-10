@@ -10,6 +10,7 @@ __PACKAGE__->meta->setup(
 		name => {type => 'varchar', length => 255, not_null => 1},
 		value => {type => 'varchar', length => 255, not_null => 1}
 	],
+	pk_columns => [qw(groupid service service_type name)],
 	foreign_keys => [
 		group => {
 			class => 'IPWS::Group',
@@ -17,3 +18,11 @@ __PACKAGE__->meta->setup(
 		}
 	]
 );
+
+package IPWS::Group::Pref::Manager;
+use Mojo::Base 'IPWS::DB::Object::Manager';
+
+sub object_class { 'IPWS::Group::Pref' }
+ 
+__PACKAGE__->make_manager_methods('prefs');
+1;

@@ -1,6 +1,9 @@
 package IPWS::User;
 use Mojo::Base 'IPWS::DB::Object';
 use IPWS::Password;
+use Carp;
+use IPWS::Util qw(serv_query);
+our @CARP_NOT=qw(IPWS::Util);
 
 __PACKAGE__->meta->setup(
 	table => 'users',
@@ -70,56 +73,75 @@ sub can_do {
 	if ($node[0]=~/\./) {
 		@node=split /\./, $node[0];
 	}
+	if (defined $service and not ref $service) {
+		croak "The first parameter to can_do must be an IPWS::Service or undef!";
+	}
 	my @query;
 	foreach (0..scalar(@node)-1) {
 		push @query, 'or', (join '.', @node[0..$_]), 'or', (join '.', @node[0..$_-1], '*');
 	}
 	shift @query; # remove the first 'or'
+	my @serv_query=serv_query($service);
 	my $u_perms=IPWS::User::Perm::Manager->get_perms(
 		query => [
 			userid => $self->id,
-			service => $service,
+			@serv_query,
 			name => \@query
 		]
 	);
-	foreach (sort {length $b->name <=> length $a->name} @$u_perms) {
+	foreach (sort _sort_perms @$u_perms) {
 		return $_->value;
 	}
-	foreach (@{$self->groups()},IPWS::Group->new(id => 0)->load) {
-		my $r=$self->can_recurse_group($service,\@query,$_);
-		return $r if defined $r;
-	}
+	return $self->foreach_group(sub {
+		my $g_perms=IPWS::Group::Perm::Manager->get_perms(
+			query => [
+				groupid => $_->id,
+				@serv_query,
+				name => \@query
+			]
+		);
+		foreach (sort _sort_perms @$g_perms) {
+			return $_->value;
+		}
+		return undef;
+	});
 }
 
 sub _sort_perms {
 	my @a_dots=split /\./, $a->name;
 	my @b_dots=split /\./, $b->name;
+	return 1 if $a->service_type and not $b->service_type;
+	return -1 if $b->service_type and not $b->service_type;
 	return $#b_dots <=> $#a_dots if $#a_dots ne $#b_dots;
 	return 1 if $a_dots[-1] eq '*';
 	return -1 if $b_dots[-1] eq '*';
 	return 0;
 }
 
-sub can_recurse_group {
-	my ($self,$service,$query,$group)=@_;
-	my $g_perms=IPWS::Group::Perm::Manager->get_perms(
-		query => [
-			groupid => $group->id,
-			service => $service,
-			name => $query
-		]
-	);
-	print STDERR join ",", map {$_->name} sort _sort_perms @$g_perms;
-	print STDERR "\n";
-	foreach (sort _sort_perms @$g_perms) {
-		print STDERR "\t".$_->name."\n";
-		return $_->value;
-	}
-	my $parent=$group->parent;
-	if ($parent) {
-		return $self->can_recurse_group($service,$query,$parent);
+sub foreach_group {
+	my ($self,$cb)=@_;
+	foreach (@{$self->groups()},IPWS::Group->new(id => 0)->load) {
+		my $r=$_->recurse_group($cb);
+		return $r if defined $r;
 	}
 	return undef;
+}
+
+sub get_pref {
+	my ($self,$service,@node)=@_;
+	if (defined $service and not ref $service) {
+		croak "The first parameter to get_pref must be an IPWS::Service or undef!";
+	}
+	my $pref;
+	unless ($node[0]=~/\./) {
+		$pref=join ".",@node;
+	}else{
+		$pref=$node[0];
+	}
+	my @serv_query=serv_query($service);
+	return $self->find_prefs([@serv_query, name => $pref])->[0] // $self->foreach_group(sub {
+		$_->find_prefs([@serv_query, name => $pref])->[0];
+	});
 }
 
 package IPWS::User::Manager;

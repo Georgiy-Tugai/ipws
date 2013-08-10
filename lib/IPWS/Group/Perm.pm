@@ -10,6 +10,7 @@ __PACKAGE__->meta->setup(
 		name => {type => 'varchar', length => 255, not_null => 1},
 		value => {type => 'boolean', default => 1}
 	],
+	pk_columns => [qw(groupid service service_type name)],
 	foreign_keys => [
 		group => {
 			class => 'IPWS::Group',

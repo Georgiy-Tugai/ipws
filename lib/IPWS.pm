@@ -15,7 +15,7 @@ use IPWS::Service;
 our $VERSION='0.1';
 our @svcs;
 our @res_path=qw(/ /admin);
-our @res_id=qw(admin core);
+our @res_id=qw(admin core *);
 our $cfg_ver='0.1.2';
 our $db;
 
@@ -160,7 +160,11 @@ sub startup {
   unless ($def_grp->load(speculative => 1)) {
     $self->warn_log("Default group (name=default, id=0) not found, creating...");
     $def_grp->add_perms([
-      {name => "login"}
+      {name => "login",
+       service => '*'},
+      {name => "login",
+       service => 'admin',
+       value => 0}
     ]);
     $def_grp->save;
   }
@@ -176,9 +180,15 @@ sub startup {
     $adm_user->force_change_pw(1);
     $adm_user->locale($self->i18n->language_tag);
     $adm_user->add_prefs({
-      name => 'on-change-password',
-      value => 'delete-password-file'
+      name => 'on-password-change',
+      value => 'delete-password-file',
+      service => '*'
     });
+    $adm_user->add_perms([
+      {name => "login",
+       service => '*',
+       value => 1}
+    ]);
     open(my $pwfil, '>:encoding(UTF-8)', $self->home->rel_file('root-password.txt')) or
       $self->die_log(fs_fail($self->l("Can't save root password! ([_1])",$@),'root-password.txt'));
     print $pwfil "$pw\n";
@@ -186,12 +196,6 @@ sub startup {
     $adm_user->save;
     $self->warn_log($self->l("The password for your new 'root' account is in '[_1]'",$self->app->home->rel_file('root-password.txt')));
     $ENV{HARNESS_ACTIVE}=1; # Don't spew help
-  }else{
-    unless ($adm_user->can_do(undef,"login")) {
-      $adm_user->add_perms([
-        {name => 'login'}
-      ]);
-    }
   }
   
   # Static files
@@ -301,7 +305,7 @@ sub load_svc {
   if ($safe{$type}) { # Actually load the service
     try {
       $self->log->debug("Loading service $id...");
-      $self->ipws()->{svcs}->{$id}="IPWS::Service::$type"->new();
+      $self->ipws()->{svcs}->{$id}="IPWS::Service::$type"->new(id => $id);
       $self->log->debug("Routing service $id...");
       my $r2=$self->baseroutes->under($$cfg{path});#->detour($svcs->{$id},{base => $id,id => $cfg->{'id'}});
       $self->log->debug("Starting service $id...");
