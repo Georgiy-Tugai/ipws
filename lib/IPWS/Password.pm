@@ -48,12 +48,18 @@ our $latest_rev;
 
 sub create {
 	my ($class,$user,$password)=@_;
+	$user->load( # reload the user for locking
+		lock => {
+			type => 'for update',
+			columns => [qw(salt password pwrevid)]
+		}, speculative => 1
+	);
 	my $salt=gen_salt();
-	my $hash=hmac_hex($latest_rev->hash,$salt,$password);
+	my $hash=hmac_hex($opts{hash},$salt,$password);
 	$user->salt(unpack 'h*', $salt);
 	$user->password($hash);
 	$user->pwrev($latest_rev);
-	$user->save;
+	$user->save(changes_only => 1);
 }
 
 sub check {
@@ -61,7 +67,7 @@ sub check {
 	my $rev=$user->pwrev;
 	if ($rev->libver le '0.1') {
 		my $check=hmac_hex($rev->hash,pack('h*', $user->salt),$password);
-		return secure_compare($user->password,$check);
+		return secure_compare($user->password,$check) || 0;
 	}else{
 		die "Unknown Password.pm revision in check() pwrev. Contact your system administrator for assistance.\n";
 	}
@@ -121,12 +127,12 @@ sub latest_rev {
 
 =head2 SYNOPSIS
 
-# at startup() or when config's sec section changes:
-IPWS::Password->latest_rev($app); #idempotent
+ # at startup() or when config's sec section changes:
+ IPWS::Password->latest_rev($app); #idempotent
 
-# Writes directly to database.
-# idempotent except for when the user's password rev is outdated
-IPWS::Password->create($user,$password);
+ # Writes directly to database. Preferably pass a non-loaded $user object, it will be loaded (again) with locking.
+ # idempotent except for when the user's password rev is outdated
+ IPWS::Password->create($user,$password);
 
-# This is nullipotent
-IPWS::Password->check($user,$password);
+ # This is nullipotent
+ IPWS::Password->check($user,$password);
