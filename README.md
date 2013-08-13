@@ -14,6 +14,7 @@ Dependencies
 - Text::Password::Pronounceable
 - Try::Tiny
 - Module::Find
+- Guard
 
 Planned Feature list
 --------------------

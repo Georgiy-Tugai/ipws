@@ -19,7 +19,7 @@ sub startup {
 
 sub drawPost {
 	my ($self,$c)=@_;
-	$c->render(text => $self->_post($c->stash('post')).' in format '.$c->stash('format').' with suffix '.$c->stash('suf').' url:'.$c->url_for('/test').' stuff:'.$c->app->moniker);
+	$c->render('blog');
 }
 
 sub handler {

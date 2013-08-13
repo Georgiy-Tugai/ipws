@@ -1,7 +1,12 @@
+% our $tran_speed='0.5s';
 % layout 'root.desktop', component => param 'comp';
 % content_for head => begin
 % end
 % content_for style => begin
+	html,body {
+		height: 100%;
+		z-index: -10;
+	}
 	.outline {
 		border: 1px solid black;
 		background: #aaa;
@@ -11,24 +16,52 @@
 		height: 100%;
 		overflow-x: hidden;
 	}
-	#page {
-		position: fixed;
+	.pane-content-container {
 		height: 100%;
+		width: 100%;
+		margin-top: -30px;
+		padding-top: 30px;
+	}
+	.pane-content {
+		width: 100%;
+		height: 100%;
+		overflow-y: auto;
+	}
+	#page {
+		position: absolute;
+		height: 100%;
+		width: 100%;
 		top: 45px;
 		z-index: -1;
+		overflow-x: hidden;
+		margin-top: -45px;
+		padding-top: 45px;
 	}
 	.panes {
 		height: 100%;
+		width: 200%;
+	}
+	.animated.panes .pane,.animated.pane {
+		transition: all <%= $tran_speed %>;
+	}
+	.new.pane {
+		transition: none;
 	}
 	.pane {
 		height: 100%;
+		width: 50%;
 		float: left;
 		overflow-y: auto;
 	}
-	.pane .nav {
+	.pane .pane-nav {
 		height: 30px;
 		background-color: grey;
 		vertical-align: middle;
+	}
+	.pane .pane-nav .pane-title {
+		font-size: 30px;
+		border-radius: 4000px;
+		background-color: #ddd;
 	}
 	@media only screen and (max-width: 58.75em) {
 		.pane {
@@ -36,11 +69,47 @@
 		}
 		.pane.active {
 			display: block;
-			width: 100% !important;
+			width: 50% !important;
 		}
 	}
-	.nav .button {
+	.pane.active {
+		background-color: #ccc;
+	}
+	.pane-nav .button {
 		height: 100%;
+	}
+	.pane-nav .row, .pane-nav .row .columns {
+		height: 100%;
+	}
+	.pane.pane-left {
+		border-left: none;
+	}
+	.pane.pane-right {
+		border-right: none;
+	}
+	.pane.hide-right {
+		opacity: 0;
+		width: 0px !important;
+		position: relative;
+		left: 50%;
+		margin: -1px;
+	}
+	.pane.hide-left {
+		opacity: 0;
+		width: 0px !important;
+		position: relative;
+		left: -50%;
+		margin: -1px;
+	}
+	.pane-content .nav {
+		margin: 0px;
+	}
+	.pane-content .nav li {
+		background-color: #fff;
+		padding-top: 1em;
+		padding-bottom: 1em;
+		padding-left: 1em;
+		border: 1px solid black;
 	}
 	% if (param 'debug') {
 		.panes .panes {
@@ -50,31 +119,94 @@
 % end
 % content_for script => begin
 //(function($){
-	function newPanel() {
+	var maxPanels=3;
+	var n=2;
+	function newPanel(opts) {
 		var panel=$('<div class="pane outline">');
-		$('.nav:first').clone().appendTo(panel);
+		$('.pane-nav:first').clone().appendTo(panel);
+		$('<div class="pane-content">').appendTo(panel);
+		panel.find('.pane-title').text('Pane '+n);
+		n++;
+		$('.active').removeClass('active');
+		panel.addClass('active');
+		panel.addClass('new');
 		panel.appendTo($('.panes'));
+		$('.pane > .pane-content').wrap($('<div class="pane-content-container">'));
 		refresh();
+		panel.removeClass('new');
 	};
 	function refresh() {
 		var objs=$('.panes').children('.pane');
-		var percent=100/objs.length;
+		var activePanel=0;
+		var remaining=0;
+		for(i=0;i<objs.length;i++) { //>
+			if ($(objs[i]).hasClass('active')){
+				activePanel=i;
+				remaining=0;
+			}else{
+				remaining++;
+			}
+		}
+		var show_right=remaining >= maxPanels ? maxPanels-1 : remaining;
+		var show_left=maxPanels-show_right-1;
+		show_left=show_left > activePanel ? activePanel : show_left;
+		show_left=show_left > (objs.length-show_right) ? objs.length-show_right : show_left;
+		for(i=0;i<objs.length;i++) { //>
+			//$(objs[i]).children('.pane-content,.pane-nav').css('width','');
+			//$(objs[i]).removeClass('hide-left').removeClass('hide-right');
+			$(objs[i]).removeClass('pane-left').removeClass('pane-right');
+			if (i < activePanel-show_left) { //>
+				//$(objs[i]).children('.pane-content,.pane-nav').css('width',$(objs[i]).width());
+				//$(objs[i]).addClass('hide-left');
+				$(objs[i]).hide();
+			}else if (i > activePanel+show_right) {
+				//$(objs[i]).children('.pane-content,.pane-nav').css('width',$(objs[i]).width());
+				//$(objs[i]).addClass('hide-right');
+				$(objs[i]).hide();
+			}else{
+				$(objs[i]).show();
+			}
+		}
+		$('.panes .pane:visible').eq(0).addClass('pane-left').end().eq(-1).addClass('pane-right');
+		var percent=(100/(show_left+show_right+1))/2;
+		if (activePanel==0) {
+			$('.panes').css('margin-left',0);
+		}else{
+			//$('.panes').css('margin-left',percent+'%');
+		}
 		objs.css('width', percent+'%');
+		objs.children('.pane-content,.pane-nav').css();
 	};
+	var anims=$('.pane.animated,.panes.animated');
+	anims.removeClass('animated');
 	refresh();
+	anims.addClass('animated');
 	$('.panes').on("click",function(){
 		if($('.top-bar, [data-topbar]').hasClass('expanded')) {
 			$('.top-bar, [data-topbar]').css('height', '').removeClass('expanded');
 		}
 	});
+	$('.panes').on('click','.pane-content, .pane-title',function(){$('.panes .pane').removeClass('active');$(this).closest('.pane').addClass('active');refresh()});
+	$('.panes').on('click','[data-pane-back]',function(){$('.panes .pane.active').removeClass('active').prev('.pane').addClass('active');refresh();})
 //})($);
 % end
-<div class="panes">
+<div class="animated panes">
 	<div class="pane active outline">
-		<div class="nav">
-			<button class="button tiny">Back</button>
-			<button onclick="newPanel()" class="button tiny right"><i class="icon-plus-sign"></i></button>
+		<div class="pane-nav">
+			<div class="row collapse">
+				<div class="small-4 columns"><button data-pane-back class="button tiny">Back</button></div>
+				<div class="small-4 columns"><center class="pane-title">Pane 1</center></div>
+				<div class="small-4 columns"><button onclick="newPanel()" class="button tiny right"><i class="icon-plus-sign"></i></button></div>
+			</div>
 		</div>
-		<%= lorem %>
+		<div class="pane-content-container">
+			<div class="pane-content">
+				<ul class="nav small-block-grid-2 large-block-grid-3">
+					% for (1..96) {
+					<li>item <%= $_ %></li>
+					% }
+				</ul>
+			</div>
+		</div>
 	</div>
 </div>

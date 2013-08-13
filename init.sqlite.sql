@@ -24,6 +24,16 @@ libver varchar(64) NOT NULL,
 hash varchar(64) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_sessions
+(
+id INTEGER PRIMARY KEY,
+userid int,
+salt varchar(255) NOT NULL,
+ctime datetime DEFAULT current_timestamp,
+etime datetime DEFAULT current_timestamp,
+addr char(45),
+FOREIGN KEY(userid) REFERENCES users(id)
+);
 CREATE TABLE IF NOT EXISTS user_groups
 (
 userid int NOT NULL,

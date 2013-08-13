@@ -1,5 +1,7 @@
 package IPWS::Group;
 use Mojo::Base 'IPWS::DB::Object';
+use Carp;
+use IPWS::Util qw(serv_query sort_perms);
 
 __PACKAGE__->meta->setup(
 	table => 'groups',
@@ -32,6 +34,26 @@ __PACKAGE__->meta->setup(
 		}
 	]
 );
+
+sub can_do {
+	my ($self,$service,@node)=@_;
+	if ($node[0]=~/\./) {
+		@node=split /\./, $node[0];
+	}
+	my @query=(join '.', @node);
+	foreach (0..scalar(@node)-1) {
+		push @query, 'or', (join '.', @node[0..$_-1], '*');
+	}
+	#shift @query; # remove the first 'or'
+	my @serv_query=serv_query($service);
+	return $self->recurse_group(sub {
+		my $g_perms=$_->find_perms([@serv_query, name => \@query]);
+		foreach (sort_perms($g_perms)) {
+			return $_->value;
+		}
+		return undef;
+	});
+}
 
 sub recurse_group {
 	my ($self,$cb)=@_;

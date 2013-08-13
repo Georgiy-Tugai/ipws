@@ -11,10 +11,12 @@ use File::Spec::Functions qw(rel2abs abs2rel file_name_is_absolute catfile);
 use Storable qw(lock_nstore lock_retrieve);
 use Crypt::Digest qw(digest_data digest_data_hex digest_data_b64);
 use IPWS::Service;
+use Scalar::Util qw(weaken);
+use Guard;
 
 our $VERSION='0.1';
 our @svcs;
-our @res_path=qw(/ /admin);
+our @res_path=qw(/ /admin /user /login /logout);
 our @res_id=qw(admin core *);
 our $cfg_ver='0.1.2';
 our $db;
@@ -52,7 +54,12 @@ our %cfg_defaults=(
   },
   'sec' => {
     'hash' => 'SHA512',
-    'salt_size' => 64
+    'salt_size' => 64,
+    'session' => {
+      'expiry' => 3600,
+      'anon_expiry' => 800,
+      'attempts' => 16 # how many times to try generating a random session ID
+    }
   },
   'log' => {
     'level' => 'debug',
@@ -160,9 +167,13 @@ sub startup {
   unless ($def_grp->load(speculative => 1)) {
     $self->warn_log("Default group (name=default, id=0) not found, creating...");
     $def_grp->add_perms([
+      {name => "login"},
       {name => "login",
-       service => '*'},
-      {name => "login",
+       service => 'admin',
+       value => 0},
+      {name => "login.roaming",
+       value => 1},
+      {name => "login.roaming",
        service => 'admin',
        value => 0}
     ]);
@@ -171,7 +182,7 @@ sub startup {
   
   # Default user
   require IPWS::User;
-  my $adm_user=IPWS::User->new(id => 0, login => "root");
+  my $adm_user=IPWS::User->new(id => 0, login => "root", name => "Administrator");
   unless ($adm_user->load(speculative => 1)) {
     $self->warn_log($self->l("Admin account (login=root, id=0) not found, creating..."));
     require Text::Password::Pronounceable;
@@ -186,8 +197,9 @@ sub startup {
     });
     $adm_user->add_perms([
       {name => "login",
-       service => '*',
-       value => 1}
+       value => 1},
+      {name => "login.roaming",
+       value => 0}
     ]);
     open(my $pwfil, '>:encoding(UTF-8)', $self->home->rel_file('root-password.txt')) or
       $self->die_log(fs_fail($self->l("Can't save root password! ([_1])",$@),'root-password.txt'));
@@ -197,6 +209,17 @@ sub startup {
     $self->warn_log($self->l("The password for your new 'root' account is in '[_1]'",$self->app->home->rel_file('root-password.txt')));
     $ENV{HARNESS_ACTIVE}=1; # Don't spew help
   }
+  
+  require IPWS::Sessions;
+  {
+    my $sobj=IPWS::Sessions->new();
+    $sobj->cookie_path($self->config('base'));
+    $self->sessions($sobj);
+  };
+  $self->cron(); # in case we're running as CGI
+  Mojo::IOLoop->recurring(5 => sub {
+    $self->cron();
+  });
   
   # Static files
   $self->helper(url_static => sub {
@@ -241,6 +264,57 @@ sub startup {
       $self->warn_log($_);
     }
   }
+  $self->load_svc('admin',{
+    type => 'Admin',
+    path => '/admin'
+  },1);
+  
+  #$r->get('/login' => sub {
+  #  $_[0]->render('login');
+  #});
+  
+  $r->post('/login' => sub {
+    my ($c)=@_;
+    my $grd = guard {
+      $c->app->warn_log("Auth failed!");
+      $c->flash({message => $c->app->l('Authentication failed.'), type => 'alert'});
+      $c->redirect_to($c->param('return-to') || $c->url_for('/'));
+    };
+    $c->app->warn_log("Authentication...");
+    return unless my $user=(IPWS::User->new(login => $c->param('username')))->load(speculative => 1);
+    $c->app->warn_log("User found OK");
+    return unless IPWS::Password->check($user,$c->param('password'));
+    $c->app->warn_log("Password OK");
+    $c->session('user' => $user);
+    $grd->cancel();
+    $c->flash({message => $c->app->l('Welcome, [_1]!', $user->name), type => 'success'});
+    $c->redirect_to($c->param('return-to') || $c->url_for('/'));
+  });
+  
+  $r->any('/logout' => sub {
+    my ($c)=@_;
+    $c->app->sessions->wipe_cookie($c);
+    if ($c->param('sessions') and $c->param('sessions') eq 'all' and $c->session->{user}) {
+      IPWS::User::Session::Manager->delete_sessions(
+        where => [
+          userid => $c->session->{user}->id
+        ]
+      );
+    }
+    $c->redirect_to($c->param('return-to') || $c->url_for('/'));
+  });
+  
+  my $r_profile=$r->under('/user/:name');
+  
+  $r_profile->get('/settings' => sub {
+    my ($c)=@_;
+    $c->render('test',content => $c->stash('name').'\'s settings page');
+  });
+  
+  $r_profile->any('/' => sub {
+    my ($c)=@_;
+    $c->render('test',content => $c->stash('name').'\'s profile');
+  });
   
   $r->any('/template/:name' => sub {
     $_[0]->render($_[0]->stash('name'));
@@ -250,33 +324,18 @@ sub startup {
     $_[0]->render('test', component => $_[0]->param('comp') || 'Admin', leftpanel => $_[0]->url_static('foundation'));
     }, path => '/');
 
-  if (0) { #TODO: It seems that we might not need this after all.
-    $self->hook(before_routes => sub {
-      my $c = shift;
-      my $path=$c->req->url->path;
-      my ($disp_debug)=(0);
-      foreach (keys %{$self->ipws()->{svcs}}) {
-        my $cfg=%{$self->config('svcs')->{$_}};
-        if ($self->svcs($_)->can('before_routes') && $path=~/^$$cfg{path}(.*)$/) {
-          if ($disp_debug) {
-            $self->warn_log("Request to $path hit an extra before_routes handler ($_, first was $disp_debug)!\n");
-          }
-          $self->svcs($_)->before_routes($c,$1);
-          return unless $self->config('debug');
-          $disp_debug=$_;
-        }
-      }
-    });
-  }
   $self->hook(around_action => sub {
     my ($next,$c,$action,$last)=@_;
     my $path=$c->req->url->path;
     my $base=$c->app->config('base');
+    $base = $base eq '/' ? '' : $base;
+    weaken($c->stash()->{c}=$c);
     return $next->() unless $path=~/^$base/;
     foreach (keys %{$self->ipws()->{svcs}}) {
-      my %cfg=%{$self->config('svcs')->{$_}};
-      if ($path=~/^$base$cfg{path}(.*)$/) {
+      my $s_path=$self->ipws()->{svcs}->{$_}->path;
+      if ($path=~/^$base($s_path.*)$/) {
         $c->stash()->{path}=$1;
+        weaken($c->stash()->{service}=$self->ipws()->{svcs}->{$_});
         return $next->();
       }
     }
@@ -287,27 +346,29 @@ sub startup {
 }
 
 sub load_svc {
-  my ($self,$id)=@_;
+  my ($self,$id,$cfg,$ovr)=@_;
   my %safe=a2h(@svcs);
   my %resr_p=a2h(@res_path);
   my %resr_i=a2h(@res_id);
-  my $cfg=$self->config('svcs')->{$id};
+  $cfg=$cfg // $self->config('svcs')->{$id};
   my $type=$cfg->{'type'};
   if (!$$cfg{'path'}) {
     die($self->l("Service of type [_1] (id=[_2]) does not have a path. Service disabled.",$type,$id)."\n");
   }
-  if ($resr_p{$$cfg{path}}) {
+  if (!$ovr and $resr_p{$$cfg{path}}) {
     die($self->l("Service [_1] ([_2]) is on a reserved path '[_3]'. Service disabled.",$id,$type,$$cfg{path})."\n");
   }
-  if ($resr_i{$id}) {
+  if (!$ovr and $resr_i{$id}) {
     die($self->l("Service [_1] ([_2]) has a reserved ID. Service disabled.",$id,$type)."\n");
   }
   if ($safe{$type}) { # Actually load the service
     try {
       $self->log->debug("Loading service $id...");
-      $self->ipws()->{svcs}->{$id}="IPWS::Service::$type"->new(id => $id);
+      $self->ipws()->{svcs}->{$id}="IPWS::Service::$type"->new(app => $self, id => $id);
       $self->log->debug("Routing service $id...");
-      my $r2=$self->baseroutes->under($$cfg{path});#->detour($svcs->{$id},{base => $id,id => $cfg->{'id'}});
+      my $r2=$self->baseroutes->under(sub {
+        $self->ipws()->{svcs}->{$id}->isVisible($_[0]);
+      })->under($$cfg{path});#->detour($svcs->{$id},{base => $id,id => $cfg->{'id'}});
       $self->log->debug("Starting service $id...");
       $self->ipws()->{svcs}->{$id}->startup($r2,$cfg);
       $self->log->debug("Service $id ready.");
@@ -318,6 +379,11 @@ sub load_svc {
   }else{
     die($self->l("Unknown service [_1] (id=[_2])",$type,$id)."\n");
   }
+}
+
+sub cron { # Stuff to run every now and then.
+  my ($self)=@_;
+  IPWS::Sessions->cleanup($self);
 }
 
 sub user {

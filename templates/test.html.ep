@@ -1,2 +1,4 @@
 % layout 'root.desktop', component => 'Test!';
 content
+% no strict;
+<%= defined($content) ? $content : '' %>

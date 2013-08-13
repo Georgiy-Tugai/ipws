@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 % no strict;no warnings;
-% my $user=param 'user';
-% my $is_admin=param 'admin';
+% my $user=session->{'user'} ? session->{'user'}->name() : '';
+% my $is_admin=app->ipws()->{svcs}->{admin}->isVisible($c) if $user;
 % my $debug=param 'debug';
-% my $component=$component // "Core";
 % my $title=$title // app->config('title');
-% my $components=$components || {map {$$_{shortname} || $$_{name} || '???',$$_{path}} values %{app->config('svcs')}};
+% my $components={map {$_->shortname, $_} grep {$_->isVisible($c)} values %{app->ipws()->{svcs}}};
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" ><![endif]-->
 <!--[if gt IE 8]><!--><html class="no-js" lang="en" ><!--<![endif]-->
 <head>
@@ -41,16 +40,16 @@
 		.reveal-modal .row.last .button {
 			margin-bottom: 0px;
 		}
-		.top-bar a:hover:not(.inactive) {
+		.top-bar li:not(.active) > a:hover:not(.inactive):not(.active) {
 			background-color: #555;
 		}
-		.top-bar .top-bar-section a:hover:not(.inactive) {
+		.top-bar .top-bar-section li:not(.active) > a:hover:not(.inactive):not(.active) {
 			background-color: #555;
 		}
 		.top-bar .menu-icon a:hover {
 			background-color: inherit !important;
 		}
-		a.inactive {
+		li.active > a,a.inactive {
 			cursor: default;
 		}
 		.no-js .no-js-open {
@@ -76,13 +75,16 @@
 		.has-dropdown i.huge {
 			margin-right: -0.2em;
 		}
+		nav#navbar {
+			margin-bottom: 0px;
+		}
 		%= content_for 'style'
 	</style>
 	%= content_for 'head'
 </head>
 <body>
 	<div id="all">
-		<nav class="top-bar" id="navbar" data-options="scrolltop:false">
+		<nav class="top-bar fixed" id="navbar" data-options="scrolltop:false">
 			<ul class="title-area">
 				<li class="name" style="background-color: #090909"><h1><a href="<%= url_for '/' %>"><%= $title %></a></h1></li>
 				<li class="toggle-topbar menu-icon"><a><span><%= l 'Menu' %></span></a></li>
@@ -91,22 +93,22 @@
 				<ul class="left">
 					% {my $navItem=begin
 							<li<%== ($_[0] eq $component ? ' class="active"' : '') %>>
-								<a <%== $components->{$_[0]} ? 'href="'.url_for($components->{$_[0]}).'"' : '' %>>
-									<%= $_[0] %>
+								<a <%== $_[0]->path ? 'href="'.url_for($_[0]->path).'"' : '' %>>
+									<%= $_[1] ? $_[0]->name : $_[0]->shortname %>
 								</a>
 							</li>
 						% end
-						%= $navItem->($component) if $component;
+						%= $navItem->($service,1) if $service;
 					<li class="divider"></li>
-						% foreach (sort keys %$components) {
-							%= $navItem->($_) unless $_ eq $component;
+						% foreach (sort keys %{$components}) {
+							%= $navItem->($components->{$_}) unless $components->{$_} eq $service or $components->{$_}->isa('IPWS::Service::Admin');
 						% }
 					% }
 				</ul>
 				<ul class="right">
 					% if ($user) {
-						<li<%== $is_admin && ' class="has-dropdown"' %>>
-							<a href="<%= url_for '/settings'%>">
+						<li class="<%== $is_admin && 'has-dropdown ' %><%== $path=~/^\/user\/$user\/settings/ ? 'active ' : ''%>">
+							<a href="<%= url_for '/user/'.$user.'/settings'%>">
 								<%= l 'Settings' %><i class="icon-gear huge i-right"></i>
 							</a>
 						% if ($is_admin) {
@@ -119,8 +121,8 @@
 							</ul>
 						% }
 						</li>
-						<li>
-							<a href="<%= url_for '/profile' %>">
+						<li<%== $path=~/^\/user\/$user\/?$/ ? ' class="active"' : ''%>>
+							<a href="<%= url_for '/user/'.$user %>">
 								<i class="icon-user huge i-left"></i><%= $user %>
 							</a>
 						</li>
@@ -128,11 +130,18 @@
 					<li class="divider"></li>
 					<li>
 						% if ($user) {
-							<a href="<%= url_for '/logout' %>">
-								<%= l 'Log out' %><i class="icon-signout huge i-right"></i>
-							</a>
+							<li class="has-dropdown">
+								<a href="<%= url_for('/logout')->query('return-to' => url_for) %>">
+									<%= l 'Log out' %><i class="icon-signout huge i-right"></i>
+								</a>
+								<ul class="dropdown">
+									<li>
+										<a href="<%= url_for('/logout')->query('sessions' => 'all', 'return-to' => url_for) %>"><%= l 'Log out all sessions' %></a>
+									</li>
+								</ul>
+							</li>
 						% } else {
-							<a data-reveal-id="login-modal">
+							<a href="<%= url_for '/login' %>" data-reveal-id="login-modal">
 								<i class="icon-key huge i-left"></i><%= l 'Log in/Register' %>
 							</a>
 						% }
@@ -145,13 +154,19 @@
 				<a class="large button alert expand" target="_blank" style="margin-bottom: 0px" href="http://enable-javascript.com/">
 					<%= l 'This website works best with JavaScript enabled' %><span class="show-for-small"><%= l ', and JavaScript is required on mobile devices.' %></span>
 				</a>
+				% if (session 'flash') {
+					<a class="large button alert expand" style="margin-bottom: 0px">
+						<%= session 'flash' %>
+					</a>
+				% }
 			</noscript>
 			<%== content %>
 		</div>
 	</div>
 	<div id="login-modal" class="reveal-modal medium">
 		<h3>Log In</h3>
-		<form method="post" action="/login">
+		<form method="post" action="<%= url_for '/login' %>">
+			<input type="hidden" name="return-to" value="<%= url_with %>" />
 			<div class="row">
 				<div class="small-12 large-6 columns">
 					<div class="row">
@@ -173,7 +188,7 @@
 							<div class="show-for-small small-2 columns"></div>
 							<div class="small-10 large-4 columns">
 								% foreach ('button postfix right show-for-small','button postfix hide-for-small') {
-								<a class="<%= $_ %>" href="/forgot" style="max-width: 10em;" tabindex="5">
+								<a class="<%= $_ %>" href="<%= url_for('/login')->query(forgot=>1) %>" style="max-width: 10em;" tabindex="5">
 									<%= l 'Forgot?' %>
 								</a>
 								% }
@@ -192,10 +207,10 @@
 					<div class="last row">
 						<div class="row collapse">
 							<div class="small-6 columns">
-								<input type="submit" name="submit" class="success button expand right" tabindex="3" value="Login" />
+								<input type="submit" name="login" class="success button expand right" tabindex="3" value="Login" />
 							</div>
 							<div class="small-6 columns">
-								<a class="button expand" href="/register" tabindex="4">
+								<a class="button expand" href="<%= url_for('/login')->query(register => 1) %>" tabindex="4">
 									<%= l 'Register' %>
 								</a>
 							</div>
@@ -206,6 +221,11 @@
 		</form>
 		<a class="close-reveal-modal" tabindex="0"><i class="icon-remove"></i></a>
 	</div>
+	% if (flash 'message') {
+		<div class="reveal-modal <%= flash('type') %> medium" id="flash-modal">
+			<%= flash('message') %>
+		</div>
+	% }
 	<script>
 		if ('Modernizr' in window) {
 			document.write('<script src=<%= url_static "foundation/js/vendor" %>/' +
@@ -229,6 +249,9 @@
 				$(this).find('input[data-focus]')[0].focus();
 			}
 		});
+		% if (flash 'message') {
+			$('#flash-modal').foundation('reveal', 'open');
+		% }
 		%= content_for 'script'
 	</script>
 </body>

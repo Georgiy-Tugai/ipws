@@ -2,7 +2,7 @@ package IPWS::User;
 use Mojo::Base 'IPWS::DB::Object';
 use IPWS::Password;
 use Carp;
-use IPWS::Util qw(serv_query);
+use IPWS::Util qw(serv_query sort_perms);
 our @CARP_NOT=qw(IPWS::Util);
 
 __PACKAGE__->meta->setup(
@@ -31,6 +31,11 @@ __PACKAGE__->meta->setup(
 		}
 	],
 	relationships => [
+		sessions => {
+			type => 'one to many',
+			class => 'IPWS::User::Session',
+			key_columns => {id => 'userid'}
+		},
 		groups => {
 			type => 'many to many',
 			map_class => 'IPWS::Map::UserGroup'
@@ -73,55 +78,26 @@ sub can_do {
 	if ($node[0]=~/\./) {
 		@node=split /\./, $node[0];
 	}
-	if (defined $service and not ref $service) {
-		croak "The first parameter to can_do must be an IPWS::Service or undef!";
-	}
-	my @query;
+	my @query=(join '.', @node);
 	foreach (0..scalar(@node)-1) {
-		push @query, 'or', (join '.', @node[0..$_]), 'or', (join '.', @node[0..$_-1], '*');
+		#push @query, 'or', (join '.', @node[0..$_]), 'or', (join '.', @node[0..$_-1], '*');
+		push @query, 'or', (join '.', @node[0..$_-1], '*');
 	}
-	shift @query; # remove the first 'or'
+	#shift @query; # remove the first 'or'
 	my @serv_query=serv_query($service);
-	my $u_perms=IPWS::User::Perm::Manager->get_perms(
-		query => [
-			userid => $self->id,
-			@serv_query,
-			name => \@query
-		]
-	);
-	foreach (sort _sort_perms @$u_perms) {
+	my $u_perms=$self->find_perms([@serv_query,name => \@query]);
+	foreach (sort_perms($u_perms)) {
 		return $_->value;
 	}
 	return $self->foreach_group(sub {
-		my $g_perms=IPWS::Group::Perm::Manager->get_perms(
-			query => [
-				groupid => $_->id,
-				@serv_query,
-				name => \@query
-			]
-		);
-		foreach (sort _sort_perms @$g_perms) {
-			return $_->value;
-		}
-		return undef;
+		$_->can_do($service,@node);
 	});
-}
-
-sub _sort_perms {
-	my @a_dots=split /\./, $a->name;
-	my @b_dots=split /\./, $b->name;
-	return 1 if $a->service_type and not $b->service_type;
-	return -1 if $b->service_type and not $b->service_type;
-	return $#b_dots <=> $#a_dots if $#a_dots ne $#b_dots;
-	return 1 if $a_dots[-1] eq '*';
-	return -1 if $b_dots[-1] eq '*';
-	return 0;
 }
 
 sub foreach_group {
 	my ($self,$cb)=@_;
 	foreach (@{$self->groups()},IPWS::Group->new(id => 0)->load) {
-		my $r=$_->recurse_group($cb);
+		my $r=$cb->($_);
 		return $r if defined $r;
 	}
 	return undef;
